@@ -90,8 +90,6 @@ logs/
 # Raw and generated datasets should generally not be committed
 # until their size, licence, and storage strategy are verified.
 
-data/raw/*
-data/processed/*
 
 # Keep directory structure
 !data/raw/.gitkeep
