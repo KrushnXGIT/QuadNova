@@ -1,0 +1,65 @@
+{
+  "total_subjects": 7,
+  "subjects_with_raw_photo": 6,
+  "subjects_with_any_mask": 4,
+  "subjects_with_complete_quad": 3,
+  "subjects_raw_only_no_mask": 3,
+  "subjects_mask_only_no_raw": 1,
+  "unclassified_files": [
+    "README_not_a_subject_file.txt"
+  ],
+  "per_subject": {
+    "20990101_120000": {
+      "available_roles": [
+        "raw_photo",
+        "mask_forniceal",
+        "mask_palpebral",
+        "mask_forniceal_palpebral"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    },
+    "20990102_130500": {
+      "available_roles": [
+        "raw_photo",
+        "mask_forniceal",
+        "mask_palpebral",
+        "mask_forniceal_palpebral"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    },
+    "20990103_140000": {
+      "available_roles": [
+        "mask_forniceal",
+        "mask_palpebral"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    },
+    "20990104_150000": {
+      "available_roles": [
+        "raw_photo"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    },
+    "20990105_160000": {
+      "available_roles": [
+        "raw_photo",
+        "mask_forniceal",
+        "mask_palpebral",
+        "mask_forniceal_palpebral"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    },
+    "20990106_170000": {
+      "available_roles": [
+        "raw_photo"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    },
+    "20990107_180000": {
+      "available_roles": [
+        "raw_photo"
+      ],
+      "duplicate_or_unclassified_extra_files": []
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "calibrated": true,
+  "calibration_n": 29,
+  "low_uncertainty_threshold": 0.6707849020129338,
+  "high_uncertainty_threshold": 0.7590507446336571,
+  "calibration_notes": [
+    "CALIBRATION POOR: Higher uncertainty does NOT correspond to higher error on the validation set (low_err=2.6083, high_err=1.9896). MC dropout uncertainty is weakly calibrated on this dataset. Confidence thresholds should be interpreted with caution."
+  ]
+}

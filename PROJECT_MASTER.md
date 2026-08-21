@@ -1,3 +1,28 @@
+
+The application boundary is:
+
+```text
+Flutter App (app/)
+     UI, image capture, local configuration, HTTP client
+                                   |
+                                   | HTTP (future integration boundary)
+                                   v
+FastAPI Backend (backend/)
+                                   |
+                                   | Python
+                                   v
+AI Model (ai_model/)
+     ROI, preprocessing, MobileNetV3, Hb regression, uncertainty
+```
+
+Flutter does not execute Python, PyTorch, training code, or model checkpoint
+loading. The backend is the bridge between the Flutter client and the model.
+
+The repository now contains the consolidated MITINDIA model implementation in
+`ai_model/`, including its real checkpoint and inference pipeline. The backend
+is not yet wired to this model; that is a later integration phase.
+
+## Research Pipeline Architecture
 # Project Master Document
 
 ## Project

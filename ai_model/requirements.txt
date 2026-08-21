@@ -1,0 +1,9 @@
+numpy
+pandas
+opencv-python-headless
+Pillow
+torch
+torchvision
+matplotlib
+piexif
+pytest

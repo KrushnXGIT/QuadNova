@@ -1,0 +1,80 @@
+[
+  {
+    "subject_id": "20990101_120000",
+    "split": "val",
+    "status": "ok",
+    "preprocessed_shape": [
+      224,
+      224,
+      3
+    ],
+    "roi_coverage_fraction": 0.25816666666666666,
+    "roi_shape": [
+      224,
+      224,
+      3
+    ]
+  },
+  {
+    "subject_id": "20990102_130500",
+    "split": "train",
+    "status": "ok",
+    "preprocessed_shape": [
+      224,
+      224,
+      3
+    ],
+    "roi_coverage_fraction": 1.0,
+    "roi_shape": [
+      224,
+      224,
+      3
+    ]
+  },
+  {
+    "subject_id": "20990103_140000",
+    "split": "train",
+    "status": "skipped_no_raw_photo"
+  },
+  {
+    "subject_id": "20990104_150000",
+    "split": "train",
+    "status": "ok",
+    "preprocessed_shape": [
+      224,
+      224,
+      3
+    ]
+  },
+  {
+    "subject_id": "20990105_160000",
+    "split": "train",
+    "status": "ok",
+    "preprocessed_shape": [
+      224,
+      224,
+      3
+    ],
+    "roi_coverage_fraction": 0.25695,
+    "roi_shape": [
+      224,
+      224,
+      3
+    ]
+  },
+  {
+    "subject_id": "20990106_170000",
+    "split": "test",
+    "status": "ok",
+    "preprocessed_shape": [
+      224,
+      224,
+      3
+    ]
+  },
+  {
+    "subject_id": "20990107_180000",
+    "split": "train",
+    "status": "invalid_raw_photo: Cannot open raw photo C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990107_180000.jpg: image file is truncated (203 bytes not processed)"
+  }
+]

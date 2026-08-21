@@ -1,0 +1,157 @@
+{
+  "data_dir": "/home/claude/quadnova/sample_dataset",
+  "total_files_scanned": 6,
+  "unique_subjects": 2,
+  "unclassified_files": [],
+  "subjects": {
+    "20200118_164733": {
+      "available_files": [
+        "mask_forniceal",
+        "mask_forniceal_palpebral",
+        "mask_palpebral",
+        "raw_photo"
+      ],
+      "has_raw_photo": true,
+      "has_forniceal_mask": true,
+      "has_palpebral_mask": true,
+      "has_combined_mask": true,
+      "details": {
+        "raw_photo": {
+          "width": 3984,
+          "height": 2988,
+          "channels": 3,
+          "file_size_bytes": 2567461,
+          "exif": {
+            "Make": "samsung",
+            "Model": "SM-G920I",
+            "Orientation": 6,
+            "DateTime": "2020:01:18 16:47:33",
+            "DateTimeOriginal": "2020:01:18 16:47:33",
+            "ExifImageWidth": 3984,
+            "ExifImageHeight": 2988
+          }
+        },
+        "mask_forniceal": {
+          "width": 800,
+          "height": 1067,
+          "channels": 4,
+          "file_size_bytes": 65602,
+          "png_crc_valid": false,
+          "png_bad_chunks": [
+            "iCCP"
+          ],
+          "has_alpha": true,
+          "mask_coverage_fraction": 0.0507,
+          "distinct_alpha_levels": 3,
+          "alpha_is_binary": false,
+          "mean_bgr_in_mask": [
+            143.12,
+            100.98,
+            167.72
+          ]
+        },
+        "mask_forniceal_palpebral": {
+          "width": 800,
+          "height": 1067,
+          "channels": 4,
+          "file_size_bytes": 321772,
+          "png_crc_valid": false,
+          "png_bad_chunks": [
+            "iCCP"
+          ],
+          "has_alpha": true,
+          "mask_coverage_fraction": 0.1375,
+          "distinct_alpha_levels": 2,
+          "alpha_is_binary": true,
+          "mean_bgr_in_mask": [
+            117.19,
+            82.36,
+            165.67
+          ]
+        },
+        "mask_palpebral": {
+          "width": 800,
+          "height": 1067,
+          "channels": 4,
+          "file_size_bytes": 321769,
+          "png_crc_valid": false,
+          "png_bad_chunks": [
+            "iCCP"
+          ],
+          "has_alpha": true,
+          "mask_coverage_fraction": 0.0868,
+          "distinct_alpha_levels": 2,
+          "alpha_is_binary": true,
+          "mean_bgr_in_mask": [
+            102.05,
+            71.49,
+            164.47
+          ]
+        }
+      },
+      "raw_to_mask_geometry": {
+        "raw_size": [
+          3984,
+          2988
+        ],
+        "mask_size": [
+          800,
+          1067
+        ],
+        "appears_rotated_90": true,
+        "approx_scale_factor": 3.735
+      },
+      "combined_mask_equals_union_of_parts": true
+    },
+    "20200203_091841": {
+      "available_files": [
+        "mask_forniceal_palpebral",
+        "mask_palpebral"
+      ],
+      "has_raw_photo": false,
+      "has_forniceal_mask": false,
+      "has_palpebral_mask": true,
+      "has_combined_mask": true,
+      "details": {
+        "mask_forniceal_palpebral": {
+          "width": 800,
+          "height": 1067,
+          "channels": 4,
+          "file_size_bytes": 146729,
+          "png_crc_valid": false,
+          "png_bad_chunks": [
+            "iCCP"
+          ],
+          "has_alpha": true,
+          "mask_coverage_fraction": 0.1202,
+          "distinct_alpha_levels": 256,
+          "alpha_is_binary": false,
+          "mean_bgr_in_mask": [
+            119.57,
+            87.1,
+            159.34
+          ]
+        },
+        "mask_palpebral": {
+          "width": 800,
+          "height": 1067,
+          "channels": 4,
+          "file_size_bytes": 242918,
+          "png_crc_valid": false,
+          "png_bad_chunks": [
+            "iCCP"
+          ],
+          "has_alpha": true,
+          "mask_coverage_fraction": 0.0533,
+          "distinct_alpha_levels": 254,
+          "alpha_is_binary": false,
+          "mean_bgr_in_mask": [
+            105.55,
+            76.54,
+            158.84
+          ]
+        }
+      }
+    }
+  }
+}

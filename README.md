@@ -37,15 +37,28 @@ smartphone-anaemia-screening/
 │   ├── metadata/
 │   └── processed/
 │
-├── src/
-│   ├── data/
-│   ├── vision/
-│   ├── model/
-│   ├── evaluation/
-│   └── utils/
+├── app/                         # Flutter application root
+│   ├── lib/
+│   │   ├── core/config/
+│   │   ├── models/
+│   │   ├── screens/
+│   │   ├── services/
+│   │   └── widgets/
+│   ├── assets/images/
+│   ├── assets/icons/
+│   ├── test/
+│   └── pubspec.yaml
+├── ai_model/                    # Consolidated MITINDIA AI source of truth
+│   ├── src/{model,vision,inference,data}/
+│   ├── models/hb_regressor_best.pt
+│   ├── tests/
+│   ├── results/
+│   ├── notebooks/
+│   └── MODEL_*.md
+├── backend/                     # Existing FastAPI implementation
+├── models/                      # Legacy empty research placeholder
 │
 ├── notebooks/
-├── models/
 ├── results/
 ├── tests/
 └── docs/
@@ -53,9 +66,17 @@ smartphone-anaemia-screening/
 
 ## Current Development Phase
 
-**Phase 1 — Dataset Verification and Project Reconnaissance**
+**FastAPI backend + existing AI model integration**
 
-The first phase focuses on understanding the actual available datasets before implementing a machine-learning pipeline.
+The application architecture is separated as Flutter (`app/`) -> HTTP ->
+FastAPI (`backend/`) -> existing Python model (`ai_model/`). Flutter does not
+execute the Python model directly.
+
+The backend now loads the existing `ai_model/models/hb_regressor_best.pt`
+checkpoint through `ai_model/src/inference/predictor.py::AnaemiaPredictor` and
+returns the predictor's real JSON output. The current model contract requires an
+ROI mask for successful inference; phone camera-only uploads correctly return
+`ROI_FAILED` until the ROI-mask flow is implemented.
 
 ## Development Philosophy
 
@@ -99,4 +120,6 @@ Each development phase should:
 
 ## Status
 
-Phase 1 is being prepared for dataset verification.
+Backend-to-AI masked inference is working and tested. Flutter response parsing
+has been updated for the real AI output fields. Successful phone-only inference
+is blocked by the current AI predictor's ROI mask requirement.

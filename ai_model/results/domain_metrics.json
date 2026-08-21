@@ -1,0 +1,339 @@
+{
+  "available_metadata": {
+    "SUBJECT_ID": "present",
+    "Hb": "present \u2014 verified clinical haemoglobin (g/dL)",
+    "country": "present \u2014 two domains: India, Italy",
+    "source_number": "present \u2014 original row index from source spreadsheet",
+    "camera_device": "NOT AVAILABLE \u2014 no device metadata in dataset",
+    "lighting": "NOT AVAILABLE \u2014 no lighting metadata in dataset",
+    "acquisition_site": "NOT AVAILABLE \u2014 no site metadata in dataset",
+    "demographics": "NOT AVAILABLE \u2014 no age/sex/skin-tone metadata in dataset",
+    "image_quality_label": "NOT AVAILABLE \u2014 quality measured programmatically only",
+    "roi_quality_label": "NOT AVAILABLE \u2014 quality measured programmatically only"
+  },
+  "total_subjects_processed": 194,
+  "rejected_subjects": {
+    "India_35": "roi_quality_fail: blurry: Laplacian_var=6.84 < threshold 10.0"
+  },
+  "train_mean_hb": 12.620808843304129,
+  "overall": {
+    "count": 194,
+    "MAE": 6.2787172253598875,
+    "RMSE": 6.698033877841892,
+    "R2": -7.129551329492573,
+    "mean_signed_error": -6.2787172253598875,
+    "std_signed_error": 2.3326739662213254,
+    "hb_min": 7.0,
+    "hb_max": 17.399999618530273,
+    "hb_mean": 12.660670105943975,
+    "hb_std": 2.349167863377217
+  },
+  "baseline_test": {
+    "count": 29,
+    "MAE": 1.656579617917175,
+    "RMSE": 1.8981899336992243,
+    "R2": -0.0026247948799857923,
+    "mean_signed_error": -0.09712211488468431,
+    "std_signed_error": 1.89570364751387,
+    "hb_min": 8.899999618530273,
+    "hb_max": 15.899999618530273,
+    "hb_mean": 12.717930958188813,
+    "hb_std": 1.8957036475138702
+  },
+  "by_split": {
+    "test": {
+      "count": 29,
+      "MAE": 6.329576229227,
+      "RMSE": 6.602196296886414,
+      "R2": -11.129306593602806,
+      "mean_signed_error": -6.329576229227,
+      "std_signed_error": 1.8776210216721565,
+      "hb_min": 8.899999618530273,
+      "hb_max": 15.899999618530273,
+      "hb_mean": 12.717930958188813,
+      "hb_std": 1.8957036475138702
+    },
+    "train": {
+      "count": 136,
+      "MAE": 6.240014651242425,
+      "RMSE": 6.691736182320903,
+      "R2": -6.558633240295608,
+      "mean_signed_error": -6.240014651242425,
+      "std_signed_error": 2.4169299299033495,
+      "hb_min": 7.0,
+      "hb_max": 17.399999618530273,
+      "hb_mean": 12.620808843304129,
+      "hb_std": 2.4339809471455998
+    },
+    "val": {
+      "count": 29,
+      "MAE": 6.409359948388461,
+      "RMSE": 6.821566788984673,
+      "R2": -7.440012879170391,
+      "mean_signed_error": -6.409359948388461,
+      "std_signed_error": 2.335354043517282,
+      "hb_min": 8.0,
+      "hb_max": 16.899999618530273,
+      "hb_mean": 12.790344830217032,
+      "hb_std": 2.348078332165521
+    }
+  },
+  "by_country": {
+    "India": {
+      "count": 94,
+      "MAE": 5.13213663912834,
+      "RMSE": 5.52783921817494,
+      "R2": -6.230973222874252,
+      "mean_signed_error": -5.13213663912834,
+      "std_signed_error": 2.053820814800891,
+      "hb_min": 7.599999904632568,
+      "hb_max": 17.100000381469727,
+      "hb_mean": 11.501063828772686,
+      "hb_std": 2.055687173418724
+    },
+    "Italy": {
+      "count": 100,
+      "MAE": 7.356502976417541,
+      "RMSE": 7.636223552976888,
+      "R2": -12.619204432411427,
+      "mean_signed_error": -7.356502976417541,
+      "std_signed_error": 2.047870627993579,
+      "hb_min": 7.0,
+      "hb_max": 17.399999618530273,
+      "hb_mean": 13.750700006484985,
+      "hb_std": 2.0692014046300895
+    }
+  },
+  "by_hb_range": {
+    "<10 (severe/moderate anaemia)": {
+      "count": 33,
+      "MAE": 2.6166095300154253,
+      "RMSE": 2.7279462179712435,
+      "R2": -11.656672892142803,
+      "mean_signed_error": -2.6166095300154253,
+      "std_signed_error": 0.7713916875207205,
+      "hb_min": 7.0,
+      "hb_max": 10.0,
+      "hb_mean": 8.980909130790018,
+      "hb_std": 0.7667892679831104
+    },
+    "10-12 (mild anaemia)": {
+      "count": 43,
+      "MAE": 4.737350707830385,
+      "RMSE": 4.766741740271938,
+      "R2": -79.4064374399825,
+      "mean_signed_error": -4.737350707830385,
+      "std_signed_error": 0.5285216073820336,
+      "hb_min": 10.100000381469727,
+      "hb_max": 12.0,
+      "hb_mean": 11.101860489956168,
+      "hb_std": 0.5315892777380468
+    },
+    "12-14 (low-normal)": {
+      "count": 57,
+      "MAE": 6.786561121020401,
+      "RMSE": 6.811415095117711,
+      "R2": -132.40434372092517,
+      "mean_signed_error": -6.786561121020401,
+      "std_signed_error": 0.5813464962066476,
+      "hb_min": 12.199999809265137,
+      "hb_max": 14.0,
+      "hb_mean": 13.166666616473282,
+      "hb_std": 0.5897288334385995
+    },
+    ">=14 (normal)": {
+      "count": 61,
+      "MAE": 8.87185185072852,
+      "RMSE": 8.9042252520954,
+      "R2": -134.73122234404764,
+      "mean_signed_error": -8.87185185072852,
+      "std_signed_error": 0.7585987600690816,
+      "hb_min": 14.100000381469727,
+      "hb_max": 17.399999618530273,
+      "hb_mean": 15.277377066065053,
+      "hb_std": 0.7642866220046658
+    }
+  },
+  "largest_errors": [
+    {
+      "subject_id": "Italy_64",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 17.399999618530273,
+      "predicted_hb": 6.390286922454834,
+      "signed_error": -11.009712219238281,
+      "absolute_error": 11.009712219238281
+    },
+    {
+      "subject_id": "India_69",
+      "split": "train",
+      "country": "India",
+      "actual_hb": 17.100000381469727,
+      "predicted_hb": 6.370373725891113,
+      "signed_error": -10.729626655578613,
+      "absolute_error": 10.729626655578613
+    },
+    {
+      "subject_id": "Italy_86",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 16.899999618530273,
+      "predicted_hb": 6.41084623336792,
+      "signed_error": -10.489152908325195,
+      "absolute_error": 10.489152908325195
+    },
+    {
+      "subject_id": "Italy_55",
+      "split": "val",
+      "country": "Italy",
+      "actual_hb": 16.899999618530273,
+      "predicted_hb": 6.491082191467285,
+      "signed_error": -10.408917427062988,
+      "absolute_error": 10.408917427062988
+    },
+    {
+      "subject_id": "Italy_119",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 16.700000762939453,
+      "predicted_hb": 6.412858009338379,
+      "signed_error": -10.287142753601074,
+      "absolute_error": 10.287142753601074
+    },
+    {
+      "subject_id": "Italy_104",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 16.5,
+      "predicted_hb": 6.41829776763916,
+      "signed_error": -10.08170223236084,
+      "absolute_error": 10.08170223236084
+    },
+    {
+      "subject_id": "India_79",
+      "split": "train",
+      "country": "India",
+      "actual_hb": 16.399999618530273,
+      "predicted_hb": 6.451445579528809,
+      "signed_error": -9.948554039001465,
+      "absolute_error": 9.948554039001465
+    },
+    {
+      "subject_id": "Italy_67",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 16.200000762939453,
+      "predicted_hb": 6.392718315124512,
+      "signed_error": -9.807282447814941,
+      "absolute_error": 9.807282447814941
+    },
+    {
+      "subject_id": "Italy_48",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 16.100000381469727,
+      "predicted_hb": 6.383916854858398,
+      "signed_error": -9.716083526611328,
+      "absolute_error": 9.716083526611328
+    },
+    {
+      "subject_id": "Italy_66",
+      "split": "test",
+      "country": "Italy",
+      "actual_hb": 15.899999618530273,
+      "predicted_hb": 6.3806562423706055,
+      "signed_error": -9.519343376159668,
+      "absolute_error": 9.519343376159668
+    },
+    {
+      "subject_id": "Italy_110",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.800000190734863,
+      "predicted_hb": 6.411755561828613,
+      "signed_error": -9.38824462890625,
+      "absolute_error": 9.38824462890625
+    },
+    {
+      "subject_id": "Italy_102",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.800000190734863,
+      "predicted_hb": 6.431252479553223,
+      "signed_error": -9.36874771118164,
+      "absolute_error": 9.36874771118164
+    },
+    {
+      "subject_id": "Italy_122",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.699999809265137,
+      "predicted_hb": 6.4247236251831055,
+      "signed_error": -9.275276184082031,
+      "absolute_error": 9.275276184082031
+    },
+    {
+      "subject_id": "Italy_81",
+      "split": "val",
+      "country": "Italy",
+      "actual_hb": 15.600000381469727,
+      "predicted_hb": 6.388625144958496,
+      "signed_error": -9.21137523651123,
+      "absolute_error": 9.21137523651123
+    },
+    {
+      "subject_id": "Italy_123",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.600000381469727,
+      "predicted_hb": 6.408809661865234,
+      "signed_error": -9.191190719604492,
+      "absolute_error": 9.191190719604492
+    },
+    {
+      "subject_id": "Italy_87",
+      "split": "test",
+      "country": "Italy",
+      "actual_hb": 15.600000381469727,
+      "predicted_hb": 6.442430019378662,
+      "signed_error": -9.157569885253906,
+      "absolute_error": 9.157569885253906
+    },
+    {
+      "subject_id": "India_54",
+      "split": "val",
+      "country": "India",
+      "actual_hb": 15.5,
+      "predicted_hb": 6.363443374633789,
+      "signed_error": -9.136556625366211,
+      "absolute_error": 9.136556625366211
+    },
+    {
+      "subject_id": "Italy_68",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.5,
+      "predicted_hb": 6.374233245849609,
+      "signed_error": -9.12576675415039,
+      "absolute_error": 9.12576675415039
+    },
+    {
+      "subject_id": "Italy_28",
+      "split": "val",
+      "country": "Italy",
+      "actual_hb": 15.449999809265137,
+      "predicted_hb": 6.346099376678467,
+      "signed_error": -9.103900909423828,
+      "absolute_error": 9.103900909423828
+    },
+    {
+      "subject_id": "Italy_106",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.5,
+      "predicted_hb": 6.446307182312012,
+      "signed_error": -9.053692817687988,
+      "absolute_error": 9.053692817687988
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+model_name=MobileNetV3-small
+architecture=MobileNetV3-small regressor with adaptive pooling and 1-unit regression head
+version=anaemia-hb-mobilenetv3-v1
+checkpoint=models/hb_regressor_best.pt
+input_size=224x224
+preprocessing_version=clahe_roi_norm_v1
+training_date=2026-08-21
+dataset_version=verified_labels_v1
+metrics={"train_mae": 6.24, "val_mae": 6.41, "test_mae": 6.33, "baseline_mae": 1.66, "r2": -11.13}
+known_limitations=Current model does not outperform the mean-Hb baseline; uncertainty is experimental; quality gates are heuristic and not clinically validated.

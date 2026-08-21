@@ -1,0 +1,74 @@
+{
+  "raw_data_dir": "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw",
+  "missing_images": {
+    "subjects_with_mask_but_no_raw_photo": [
+      "20990103_140000"
+    ],
+    "subjects_with_raw_photo_but_no_mask": [
+      "20990104_150000",
+      "20990106_170000",
+      "20990107_180000"
+    ],
+    "count_mask_no_raw": 1,
+    "count_raw_no_mask": 3
+  },
+  "missing_labels": {
+    "labels_available": false,
+    "note": "No Hb/label metadata table is available (documented blocker \u2014 see HANDOFF.md). Every subject is therefore currently 'missing its label'. This is not evaluated per-subject until a metadata table is supplied."
+  },
+  "corrupted_images": {
+    "total_files_checked": 17,
+    "total_corrupted": 1,
+    "details": [
+      {
+        "path": "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990107_180000.jpg",
+        "role": "raw_photo",
+        "valid": false,
+        "error": "Cannot open raw photo C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990107_180000.jpg: image file is truncated (203 bytes not processed)"
+      }
+    ]
+  },
+  "duplicate_images": {
+    "duplicate_groups": 4,
+    "details": {
+      "d2ae88e6a672519fb1e9b19efbdf6883": [
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990101_120000_forniceal.png",
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990101_120000_forniceal_palpebral.png"
+      ],
+      "0dae90c508c20e9d0bf62811352450d3": [
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990102_130500_forniceal.png",
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990102_130500_forniceal_palpebral.png"
+      ],
+      "688504ba4977b9a56f2053d180ab3fa1": [
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990105_160000.jpg",
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990106_170000.jpg"
+      ],
+      "65fc5f136bc018377becde685e141c55": [
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990105_160000_forniceal.png",
+        "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw\\20990105_160000_forniceal_palpebral.png"
+      ]
+    }
+  },
+  "image_dimensions": {
+    "raw_photo_dimension_counts": {
+      "400x300": 1,
+      "300x400": 4
+    },
+    "mask_dimension_counts": {
+      "107x80": 11
+    }
+  },
+  "unclassified_files": [
+    "README_not_a_subject_file.txt"
+  ],
+  "split_overlap": {
+    "overlap_detected": false
+  },
+  "subject_leakage": {
+    "subjects_in_data_not_in_any_split": [],
+    "subjects_in_split_not_in_data": []
+  },
+  "target_distribution": {
+    "note": "NOT COMPUTABLE \u2014 no metadata table available. Not fabricated."
+  }
+}

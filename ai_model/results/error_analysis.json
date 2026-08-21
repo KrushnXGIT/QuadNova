@@ -1,0 +1,174 @@
+{
+  "model": "models/hb_regressor_best.pt",
+  "rejected": {
+    "20200213_155456_001": "roi_quality_fail: blurry: Laplacian_var=6.84 < threshold 10.0"
+  },
+  "overall": {
+    "count": 194,
+    "MAE": 1.507411860928093,
+    "RMSE": 1.9500810706890435,
+    "R2": 0.31090796322638925
+  },
+  "by_split": {
+    "test": {
+      "count": 30,
+      "MAE": 2.045361598332723,
+      "RMSE": 2.5105734130410657,
+      "R2": -0.3272057609167942
+    },
+    "train": {
+      "count": 135,
+      "MAE": 1.2952116153858326,
+      "RMSE": 1.6315428370282714,
+      "R2": 0.5184648540366172
+    },
+    "val": {
+      "count": 29,
+      "MAE": 1.9387408618269295,
+      "RMSE": 2.554888144980275,
+      "R2": -0.058497735305862664
+    }
+  },
+  "by_country": {
+    "India": {
+      "count": 94,
+      "MAE": 1.0171146392822266,
+      "RMSE": 1.4055683038395872,
+      "R2": 0.5324911269170273
+    },
+    "Italy": {
+      "count": 100,
+      "MAE": 1.9682912492752076,
+      "RMSE": 2.349548567753151,
+      "R2": -0.2893277336114828
+    }
+  },
+  "by_hb_range": {
+    "<10": {
+      "count": 33,
+      "MAE": 1.3242272030223499,
+      "RMSE": 1.6751644157329177,
+      "R2": -3.7726856018849597
+    },
+    "10-12": {
+      "count": 43,
+      "MAE": 1.231396885805352,
+      "RMSE": 1.7027612138253854,
+      "R2": -9.260182200754997
+    },
+    "12-14": {
+      "count": 57,
+      "MAE": 1.2287848372208445,
+      "RMSE": 1.633675770391337,
+      "R2": -6.674092180293123
+    },
+    ">=14": {
+      "count": 61,
+      "MAE": 2.06143609031302,
+      "RMSE": 2.457312333622132,
+      "R2": -9.337325828545026
+    }
+  },
+  "largest_absolute_errors": [
+    {
+      "subject_id": "28",
+      "split": "test",
+      "country": "Italy",
+      "actual_hb": 15.449999809265137,
+      "predicted_hb": 8.445598602294922,
+      "error": -7.004401206970215,
+      "absolute_error": 7.004401206970215,
+      "hb_range": ">=14"
+    },
+    {
+      "subject_id": "20200224_162916",
+      "split": "val",
+      "country": "India",
+      "actual_hb": 16.399999618530273,
+      "predicted_hb": 9.450241088867188,
+      "error": -6.949758529663086,
+      "absolute_error": 6.949758529663086,
+      "hb_range": ">=14"
+    },
+    {
+      "subject_id": "6",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 15.0,
+      "predicted_hb": 9.42620849609375,
+      "error": -5.57379150390625,
+      "absolute_error": 5.57379150390625,
+      "hb_range": ">=14"
+    },
+    {
+      "subject_id": "22",
+      "split": "test",
+      "country": "Italy",
+      "actual_hb": 12.600000381469727,
+      "predicted_hb": 7.236552715301514,
+      "error": -5.363447666168213,
+      "absolute_error": 5.363447666168213,
+      "hb_range": "12-14"
+    },
+    {
+      "subject_id": "11",
+      "split": "val",
+      "country": "Italy",
+      "actual_hb": 12.0,
+      "predicted_hb": 7.546796798706055,
+      "error": -4.453203201293945,
+      "absolute_error": 4.453203201293945,
+      "hb_range": "10-12"
+    },
+    {
+      "subject_id": "27",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 9.350000381469727,
+      "predicted_hb": 5.247620105743408,
+      "error": -4.102380275726318,
+      "absolute_error": 4.102380275726318,
+      "hb_range": "<10"
+    },
+    {
+      "subject_id": "T_79_20190614_075002",
+      "split": "val",
+      "country": "Italy",
+      "actual_hb": 15.800000190734863,
+      "predicted_hb": 11.784982681274414,
+      "error": -4.015017509460449,
+      "absolute_error": 4.015017509460449,
+      "hb_range": ">=14"
+    },
+    {
+      "subject_id": "5",
+      "split": "train",
+      "country": "Italy",
+      "actual_hb": 11.600000381469727,
+      "predicted_hb": 7.587307929992676,
+      "error": -4.012692451477051,
+      "absolute_error": 4.012692451477051,
+      "hb_range": "10-12"
+    },
+    {
+      "subject_id": "18",
+      "split": "test",
+      "country": "Italy",
+      "actual_hb": 11.75,
+      "predicted_hb": 7.774812698364258,
+      "error": -3.975187301635742,
+      "absolute_error": 3.975187301635742,
+      "hb_range": "10-12"
+    },
+    {
+      "subject_id": "T_24_20190608_091157",
+      "split": "val",
+      "country": "Italy",
+      "actual_hb": 16.899999618530273,
+      "predicted_hb": 12.937959671020508,
+      "error": -3.9620399475097656,
+      "absolute_error": 3.9620399475097656,
+      "hb_range": ">=14"
+    }
+  ]
+}
