@@ -134,6 +134,10 @@ def _status_code_for(result) -> int:
         ResponseStatus.MODEL_NOT_READY.value: 503,
         ResponseStatus.IMAGE_QUALITY_FAILED.value: 422,
         ResponseStatus.ROI_FAILED.value: 422,
+        "EYE_NOT_DETECTED": 422,
+        "CONJUNCTIVA_NOT_DETECTED": 422,
+        "ROI_QUALITY_FAILED": 422,
+        ResponseStatus.INVALID_INPUT.value: 422,
         ResponseStatus.INFERENCE_ERROR.value: 500,
         ResponseStatus.INTERNAL_ERROR.value: 500,
     }

@@ -1,5 +1,5 @@
 {
-  "started_at": 1787349394.014063,
+  "started_at": 1787369141.8307483,
   "raw_dir": "C:\\Users\\HP\\Desktop\\wrk\\smartphone-anaemia-screening\\ai_model\\tests\\synthetic_fixtures\\raw",
   "n_subjects_found": 7,
   "split_counts": {
@@ -10,7 +10,7 @@
   "split_path": "tests/synthetic_fixtures/outputs_testrun\\split.json",
   "labels_status": "unavailable",
   "raw_data_unchanged": true,
-  "duration_seconds": 0.079,
+  "duration_seconds": 0.106,
   "n_corrupted_files": 1,
   "n_duplicate_groups": 4,
   "target_mode": "regression"

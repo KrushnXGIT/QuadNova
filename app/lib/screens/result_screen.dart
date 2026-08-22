@@ -1,12 +1,65 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/screening_history_service.dart';
 import '../theme/app_theme.dart';
+import 'preview_screen.dart';
 
-/// Result screen shown after backend analysis completes.
-class ResultScreen extends StatelessWidget {
+/// AI anaemia screening report.
+///
+/// Every displayed number comes from the REAL backend response. This screen
+/// never computes, adjusts, or invents Hb values or medical classifications —
+/// interpretation is limited to what the backend itself reports
+/// (confidence status + recommendation).
+class ResultScreen extends StatefulWidget {
   final PredictionResult result;
 
-  const ResultScreen({super.key, required this.result});
+  /// Path of the analysed capture; enables "Retry" for transient failures
+  /// without forcing a recapture.
+  final String? imagePath;
+
+  const ResultScreen({super.key, required this.result, this.imagePath});
+
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  bool _historySaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_historySaved && widget.result.data != null) {
+      _historySaved = true;
+      // Fire-and-forget; history must never block or break the report.
+      ScreeningHistoryService.instance.addFromResult(widget.result);
+    }
+  }
+
+  // ── Navigation helpers ────────────────────────────────────
+
+  void _newScreening() {
+    Navigator.pushNamedAndRemoveUntil(
+        context, '/camera', (r) => r.settings.name == '/main');
+  }
+
+  void _backHome() {
+    Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
+  }
+
+  void _retryUpload() {
+    final path = widget.imagePath;
+    if (path == null) {
+      _newScreening();
+      return;
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => PreviewScreen(imagePath: path)),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -15,13 +68,11 @@ class ResultScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppTheme.cream,
         automaticallyImplyLeading: false,
-        title: const Text('Screening Result'),
+        title: const Text('Screening Report'),
         actions: [
           IconButton(
             icon: const Icon(Icons.close_rounded),
-            onPressed: () =>
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/main', (_) => false),
+            onPressed: _backHome,
           ),
         ],
       ),
@@ -36,87 +87,163 @@ class ResultScreen extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context) {
-    switch (result.status) {
+    switch (widget.result.status) {
       case PredictionStatus.predictionComplete:
       case PredictionStatus.lowConfidence:
-        return _SuccessBody(result: result);
+        return _ReportBody(result: widget.result);
+
       case PredictionStatus.imageQualityFailed:
-      case PredictionStatus.roiFailed:
-        return _StatusBody(
-          icon: Icons.camera_alt_rounded,
+        return _FailureBody(
+          icon: Icons.image_not_supported_outlined,
           iconColor: AppTheme.terracotta,
-          title: result.status == PredictionStatus.roiFailed
-              ? 'Eye Region Not Detected'
-              : 'Image Quality Insufficient',
-          subtitle: result.message ??
-              'The image did not meet quality requirements. Please retake.',
-          canRetry: true,
+          title: 'Image Quality Insufficient',
+          message: 'Image quality is not sufficient for screening.',
+          detail: widget.result.message,
+          reasons: widget.result.data?.quality.failureReasons ?? const [],
+          primaryLabel: 'Retake Image',
+          onPrimary: _newScreening,
         );
+
+      case PredictionStatus.eyeNotDetected:
+        return _FailureBody(
+          icon: Icons.visibility_off_outlined,
+          iconColor: AppTheme.terracotta,
+          title: 'Eye Not Detected',
+          message: 'Eye not detected. Please capture a clear image of your eye.',
+          detail: widget.result.message,
+          reasons: const [],
+          primaryLabel: 'Retake Image',
+          onPrimary: _newScreening,
+        );
+
+      case PredictionStatus.conjunctivaNotDetected:
+        return _FailureBody(
+          icon: Icons.visibility_outlined,
+          iconColor: AppTheme.terracotta,
+          title: 'Conjunctiva Not Detected',
+          message: 'Please make sure the inner eyelid is clearly visible.',
+          detail: widget.result.message,
+          reasons: const [],
+          primaryLabel: 'Retake Image',
+          onPrimary: _newScreening,
+        );
+
+      case PredictionStatus.roiQualityFailed:
+        return _FailureBody(
+          icon: Icons.center_focus_weak_rounded,
+          iconColor: AppTheme.terracotta,
+          title: 'Image Quality Insufficient',
+          message: 'Image quality is insufficient. Please retake the image.',
+          detail: widget.result.message,
+          reasons: const [],
+          primaryLabel: 'Retake Image',
+          onPrimary: _newScreening,
+        );
+
+      case PredictionStatus.roiFailed:
+        return _FailureBody(
+          icon: Icons.center_focus_weak_rounded,
+          iconColor: AppTheme.terracotta,
+          title: 'Required Region Not Found',
+          message:
+              'We could not reliably identify the required region '
+              '(inner eyelid).',
+          detail: widget.result.message,
+          reasons: const [],
+          primaryLabel: 'Retake Image',
+          onPrimary: _newScreening,
+        );
+
       case PredictionStatus.modelNotReady:
-        return _StatusBody(
+        return _FailureBody(
           icon: Icons.hourglass_bottom_rounded,
           iconColor: AppTheme.slateLight,
-          title: 'AI Model Not Available',
-          subtitle:
-              'The screening model is not yet integrated. This will be enabled once the trained model is available.',
-          canRetry: false,
+          title: 'Service Temporarily Unavailable',
+          message: 'Screening service is temporarily unavailable.',
+          detail: widget.result.message,
+          reasons: const [],
+          primaryLabel: null,
+          onPrimary: null,
         );
+
       case PredictionStatus.networkError:
-        return _StatusBody(
+      case PredictionStatus.parseError:
+      case PredictionStatus.inferenceError:
+      case PredictionStatus.unknownError:
+        return _FailureBody(
           icon: Icons.wifi_off_rounded,
           iconColor: AppTheme.errorRed,
-          title: 'Cannot Reach Server',
-          subtitle: result.message ??
-              'Make sure your phone and computer are on the same Wi-Fi network.',
-          canRetry: true,
+          title: 'Analysis Could Not Complete',
+          message: widget.result.message ??
+              'Something went wrong while analysing the image.',
+          detail: null,
+          reasons: const [],
+          primaryLabel: 'Retry',
+          onPrimary: _retryUpload,
         );
-      default:
-        return _StatusBody(
+
+      case PredictionStatus.validationError:
+      case PredictionStatus.invalidImage:
+        return _FailureBody(
           icon: Icons.error_outline_rounded,
           iconColor: AppTheme.errorRed,
-          title: 'Something Went Wrong',
-          subtitle: result.message ?? 'Please try again.',
-          canRetry: true,
+          title: 'Image Rejected',
+          message: widget.result.message ??
+              'The captured image was rejected by the server.',
+          detail: null,
+          reasons: const [],
+          primaryLabel: 'Retake Image',
+          onPrimary: _newScreening,
+        );
+
+      case PredictionStatus.notConfigured:
+        return _FailureBody(
+          icon: Icons.dns_rounded,
+          iconColor: AppTheme.errorRed,
+          title: 'Server Not Configured',
+          message: widget.result.message ??
+              'Set your screening server address in Account → Server Settings.',
+          detail: null,
+          reasons: const [],
+          primaryLabel: 'Back to Home',
+          onPrimary: _backHome,
         );
     }
   }
 }
 
-// ── Success / Low Confidence body ─────────────────────────
+// ── Success / low-confidence report ───────────────────────
 
-class _SuccessBody extends StatelessWidget {
+class _ReportBody extends StatelessWidget {
   final PredictionResult result;
-  const _SuccessBody({required this.result});
+  const _ReportBody({required this.result});
+
+  String _prettyStatus(String s) =>
+      s.isEmpty ? 'Unknown' : s.replaceAll('_', ' ').toLowerCase();
+
+  Color _confidenceColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'HIGH_CONFIDENCE':
+        return AppTheme.successGreen;
+      case 'MEDIUM_CONFIDENCE':
+        return AppTheme.terracotta;
+      default:
+        return AppTheme.errorRed;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final data = result.data!;
-    final isLowConf =
-        result.status == PredictionStatus.lowConfidence ||
-            data.confidenceStatus == 'LOW_CONFIDENCE';
-    final hb = data.estimatedHb;
-
-    // Hb interpretation
-    final String hbLabel;
-    final Color hbColor;
-    if (hb < 8.0) {
-      hbLabel = 'Severely Low';
-      hbColor = AppTheme.errorRed;
-    } else if (hb < 11.0) {
-      hbLabel = 'Low';
-      hbColor = const Color(0xFFE07B2A);
-    } else if (hb < 12.0) {
-      hbLabel = 'Borderline';
-      hbColor = AppTheme.terracotta;
-    } else {
-      hbLabel = 'Normal Range';
-      hbColor = AppTheme.successGreen;
-    }
+    final isLowConf = result.status == PredictionStatus.lowConfidence ||
+        data.confidenceStatus.toUpperCase() == 'LOW_CONFIDENCE';
+    final confColor = _confidenceColor(data.confidenceStatus);
+    final qualityGood = data.quality.status.toUpperCase() == 'GOOD';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Low confidence warning ──────────────
+        // ── Low-confidence warning banner ────────
         if (isLowConf) ...[
           Container(
             padding: const EdgeInsets.all(14),
@@ -126,18 +253,36 @@ class _SuccessBody extends StatelessWidget {
               border: Border.all(
                   color: AppTheme.terracotta.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.warning_amber_rounded,
-                    size: 18, color: AppTheme.terracotta),
-                const SizedBox(width: 10),
-                const Expanded(
+                Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 18, color: AppTheme.terracotta),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Low-confidence screening estimate',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.terracottaDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Padding(
+                  padding: EdgeInsets.only(left: 28),
                   child: Text(
-                    'Low confidence result — consider retaking.',
+                    'The image/model result is uncertain. Consider '
+                    'confirmatory blood testing.',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: AppTheme.terracottaDark,
-                      fontWeight: FontWeight.w600,
+                      height: 1.5,
                     ),
                   ),
                 ),
@@ -147,7 +292,7 @@ class _SuccessBody extends StatelessWidget {
           const SizedBox(height: 20),
         ],
 
-        // ── Hb value card ───────────────────────
+        // ── Estimated Hb card (real model value) ──
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 32),
@@ -158,7 +303,7 @@ class _SuccessBody extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(
+              const Text(
                 'Estimated Haemoglobin',
                 style: TextStyle(
                     fontSize: 13,
@@ -171,11 +316,11 @@ class _SuccessBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    hb.toStringAsFixed(1),
-                    style: TextStyle(
+                    data.estimatedHb.toStringAsFixed(1),
+                    style: const TextStyle(
                       fontSize: 56,
                       fontWeight: FontWeight.w800,
-                      color: hbColor,
+                      color: AppTheme.slateInk,
                       letterSpacing: -2,
                       height: 1.0,
                     ),
@@ -184,7 +329,7 @@ class _SuccessBody extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 8, left: 4),
                     child: Text(
                       data.unit,
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 16,
                           color: AppTheme.slateMid,
                           fontWeight: FontWeight.w500),
@@ -192,20 +337,20 @@ class _SuccessBody extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: hbColor.withValues(alpha: 0.08),
+                  color: confColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  hbLabel,
+                  'Confidence: ${_prettyStatus(data.confidenceStatus)}',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: hbColor,
+                    color: confColor,
                   ),
                 ),
               ),
@@ -215,28 +360,26 @@ class _SuccessBody extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Metrics row ─────────────────────────
+        // ── Confidence & image-quality metrics ────
         Row(
           children: [
             Expanded(
               child: _MetricCard(
-                label: 'Confidence',
-                value: data.confidenceStatus
-                    .replaceAll('_', ' ')
-                    .toLowerCase(),
-                icon: Icons.verified_outlined,
-                color: data.confidenceStatus == 'HIGH_CONFIDENCE'
-                    ? AppTheme.successGreen
-                    : AppTheme.terracotta,
+                label: 'Uncertainty (±1 SD)',
+                value: '±${data.hbStd.toStringAsFixed(2)} ${data.unit}',
+                icon: Icons.query_stats_rounded,
+                color: AppTheme.slateMid,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _MetricCard(
                 label: 'Image Quality',
-                value: data.quality.status,
+                value: data.quality.status.isEmpty
+                    ? 'Unknown'
+                    : _prettyStatus(data.quality.status),
                 icon: Icons.image_search_rounded,
-                color: data.quality.status == 'GOOD'
+                color: qualityGood
                     ? AppTheme.successGreen
                     : AppTheme.terracotta,
               ),
@@ -246,18 +389,21 @@ class _SuccessBody extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        if (data.confidenceInterval95.length == 2) ...[
+        // ── 95% confidence interval ───────────────
+        if (data.confidenceInterval95.length == 2)
           _MetricCard(
-            label: 'Uncertainty',
+            label: '95% Confidence Interval',
             value:
-                '95% CI ${data.confidenceInterval95[0].toStringAsFixed(1)}-${data.confidenceInterval95[1].toStringAsFixed(1)} ${data.unit}',
-            icon: Icons.query_stats_rounded,
+                '${data.confidenceInterval95[0].toStringAsFixed(1)} – '
+                '${data.confidenceInterval95[1].toStringAsFixed(1)} ${data.unit}',
+            icon: Icons.align_horizontal_center_rounded,
             color: AppTheme.slateMid,
           ),
-          const SizedBox(height: 16),
-        ],
 
-        // ── Recommendation ──────────────────────
+        if (data.confidenceInterval95.length == 2)
+          const SizedBox(height: 16),
+
+        // ── Recommendation (verbatim from backend) ─
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -272,12 +418,75 @@ class _SuccessBody extends StatelessWidget {
                   size: 16, color: AppTheme.terracotta),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  data.recommendation,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.slateMid,
-                      height: 1.55),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Recommendation',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.slateLight,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data.recommendation.isEmpty
+                          ? 'No recommendation returned by the server.'
+                          : data.recommendation,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.slateMid,
+                          height: 1.55),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Model information ─────────────────────
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.surfacePaper,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.memory_rounded,
+                  size: 16, color: AppTheme.slateLight),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Model',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.slateLight,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data.model.name.isEmpty
+                          ? 'HemoScan AI screening model'
+                          : '${data.model.name} · ${data.model.version}',
+                      style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.slateMid,
+                          height: 1.55),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -288,52 +497,69 @@ class _SuccessBody extends StatelessWidget {
 
         // ── Actions ─────────────────────────────
         ElevatedButton.icon(
-          onPressed: () =>
-              Navigator.pushNamedAndRemoveUntil(
-                  context, '/camera', (r) => r.settings.name == '/main'),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/camera', (r) => r.settings.name == '/main');
+          },
           icon: const Icon(Icons.camera_alt_rounded, size: 18),
-          label: const Text('Scan Again'),
+          label: const Text('New Screening'),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
-          onPressed: () =>
-              Navigator.pushNamedAndRemoveUntil(
-                  context, '/main', (_) => false),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
+          },
           child: const Text('Back to Home'),
         ),
 
         const SizedBox(height: 24),
 
         // ── Disclaimer ──────────────────────────
-        Text(
-          'SCREENING ESTIMATE ONLY — NOT FOR CLINICAL DIAGNOSIS',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 10,
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceWhite,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: const Text(
+            'This is an AI-based screening estimate for research/prototype '
+            'use. It is not a clinical diagnosis or a replacement for '
+            'confirmatory blood testing.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
               color: AppTheme.slateLight,
-              letterSpacing: 0.5,
-              fontWeight: FontWeight.w600),
+              height: 1.55,
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-// ── Error / Status body ───────────────────────────────────
+// ── Failure / status body ─────────────────────────────────
 
-class _StatusBody extends StatelessWidget {
+class _FailureBody extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
-  final String subtitle;
-  final bool canRetry;
+  final String message;
+  final String? detail;
+  final List<String> reasons;
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
 
-  const _StatusBody({
+  const _FailureBody({
     required this.icon,
     required this.iconColor,
     required this.title,
-    required this.subtitle,
-    required this.canRetry,
+    required this.message,
+    required this.detail,
+    required this.reasons,
+    required this.primaryLabel,
+    required this.onPrimary,
   });
 
   @override
@@ -365,7 +591,7 @@ class _StatusBody extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          subtitle,
+          message,
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
@@ -373,19 +599,96 @@ class _StatusBody extends StatelessWidget {
             height: 1.6,
           ),
         ),
+        if (detail != null &&
+            detail!.isNotEmpty &&
+            detail != message) ...[
+          const SizedBox(height: 8),
+          Text(
+            detail!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.slateLight,
+              height: 1.5,
+            ),
+          ),
+        ],
+        if (reasons.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.surfacePaper,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reported issues',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.slateLight,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...reasons.map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ',
+                            style: TextStyle(
+                                fontSize: 13, color: AppTheme.slateMid)),
+                        Expanded(
+                          child: Text(
+                            r,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.slateMid,
+                                height: 1.45),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 36),
-        if (canRetry)
+        if (primaryLabel != null && onPrimary != null)
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Try Again'),
+            onPressed: onPrimary,
+            icon: Icon(
+              primaryLabel == 'Retry'
+                  ? Icons.refresh_rounded
+                  : Icons.camera_alt_rounded,
+              size: 18,
+            ),
+            label: Text(primaryLabel!),
           ),
         const SizedBox(height: 12),
         OutlinedButton(
-          onPressed: () =>
-              Navigator.pushNamedAndRemoveUntil(
-                  context, '/main', (_) => false),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
+          },
           child: const Text('Back to Home'),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'SCREENING ESTIMATE ONLY — NOT FOR CLINICAL DIAGNOSIS',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              fontSize: 10,
+              color: AppTheme.slateLight,
+              letterSpacing: 0.5,
+              fontWeight: FontWeight.w600),
         ),
       ],
     );

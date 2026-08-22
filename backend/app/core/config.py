@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     AI_MODEL_PATH: str = "../ai_model/models/hb_regressor_best.pt"
     AI_DEVICE: str = "cpu"
 
+    # Auto ROI-mask generation for phone captures that arrive without a mask.
+    # When disabled, image-only uploads return ROI_FAILED as before.
+    AUTO_MASK_ENABLED: bool = True
+
     # CORS — comma-separated string parsed below
     ALLOWED_ORIGINS: str = "http://localhost:8000,http://10.0.2.2:8000"
 

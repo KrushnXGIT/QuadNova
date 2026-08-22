@@ -65,6 +65,31 @@ No output should be described as a definitive diagnosis of anaemia.
 
 If future development produces a prediction interface, the interface must clearly communicate the research/experimental nature of the system.
 
+## Input-Domain Safety Gate
+
+The Hb regression model must only be executed after successful input-domain and
+ROI validation. The backend pipeline is:
+
+```text
+Image upload
+     -> conjunctiva candidate detection
+     -> full-image and ROI quality checks
+     -> ROI-only color normalization
+     -> Hb regression
+     -> uncertainty and confidence
+     -> structured report
+```
+
+The live mask generator is a conservative classical-CV guard using redness,
+connected components, coverage bounds, and local dark eye-context. The current
+prototype threshold requires at least `0.005` dark pixels in the local context;
+the permitted sample measured `0.1511`, while a synthetic solid red object
+measured `0.0`. These are engineering observations, not clinical validation.
+Images that fail return `ROI_FAILED` with
+`error.code=CONJUNCTIVA_NOT_DETECTED`, contain no Hb estimate, and never invoke
+the predictor. This reduces ordinary out-of-domain inputs but is not a
+guarantee against all unusual or adversarial images.
+
 ---
 
 # 4. Research Questions

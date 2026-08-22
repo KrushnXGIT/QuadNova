@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -8,13 +9,21 @@ import '../core/config/api_config.dart';
 ///
 /// The base URL is configured by the user at runtime and stored in
 /// SharedPreferences. Works on any WiFi — no hardcoded IPs.
+///
+/// Responsibilities:
+///   - upload the captured image to POST /api/v1/predict (multipart/form-data)
+///   - parse the REAL backend response into typed models
+///   - map transport/HTTP failures to user-friendly typed results
+///
+/// No Hb value is ever computed or invented here — every number displayed in
+/// the UI comes from the backend's AI model response.
 class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
   static const String _prefKey = 'backend_url';
   static const String kDefaultUrl = ApiConfig.defaultBaseUrl;
-  static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _timeout = Duration(seconds: 60);
 
   // ── URL management ────────────────────────────────────────
 
@@ -41,10 +50,22 @@ class ApiService {
 
   // ── Endpoints ─────────────────────────────────────────────
 
-  /// POST /api/v1/predict — upload image and get Hb prediction.
+  /// POST /api/v1/predict — upload image and get the real Hb prediction.
+  ///
+  /// Sends only the captured image; the backend runs the actual AI pipeline.
   Future<PredictionResult> predict(File imageFile) async {
     final base = await getBaseUrl();
     if (base.isEmpty) return PredictionResult.notConfigured();
+
+    // Basic client-side sanity check before spending bandwidth. The
+    // authoritative quality check remains on the backend/AI side.
+    if (!imageFile.existsSync() || imageFile.lengthSync() < 1024) {
+      return const PredictionResult(
+        success: false,
+        status: PredictionStatus.invalidImage,
+        message: 'The captured image is not usable. Please retake it.',
+      );
+    }
 
     final uri = Uri.parse('$base/api/v1/predict');
     try {
@@ -54,14 +75,32 @@ class ApiService {
         );
       final streamed = await request.send().timeout(_timeout);
       final body = await streamed.stream.bytesToString();
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      return PredictionResult.fromJson(json);
+
+      Map<String, dynamic> json;
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) throw const FormatException();
+        json = decoded;
+      } on FormatException {
+        // Non-JSON body (proxy error page, HTML, empty body…)
+        return PredictionResult.parseError(
+          httpStatus: streamed.statusCode,
+        );
+      }
+
+      return PredictionResult.fromJson(json, httpStatus: streamed.statusCode);
+    } on TimeoutException {
+      return const PredictionResult(
+        success: false,
+        status: PredictionStatus.networkError,
+        message:
+            'The server took too long to respond. Check your connection '
+            'and try again.',
+      );
     } on SocketException {
       return PredictionResult.networkError();
     } on HttpException {
       return PredictionResult.networkError();
-    } on FormatException {
-      return PredictionResult.parseError();
     } catch (_) {
       return PredictionResult.networkError();
     }
@@ -99,16 +138,22 @@ class ApiService {
   }
 }
 
-// ── Response models ───────────────────────────────────────
+// ── Response models (match backend/API_DOCUMENTATION.md exactly) ──────────
 
 enum PredictionStatus {
   predictionComplete,
   lowConfidence,
   imageQualityFailed,
+  eyeNotDetected,
+  conjunctivaNotDetected,
+  roiQualityFailed,
   roiFailed,
   modelNotReady,
+  inferenceError,
+  validationError,
   networkError,
   notConfigured,
+  invalidImage,
   parseError,
   unknownError,
 }
@@ -116,10 +161,28 @@ enum PredictionStatus {
 class QualityResult {
   final String status;
   final double score;
-  const QualityResult({required this.status, required this.score});
-  factory QualityResult.fromJson(Map<String, dynamic> j) => QualityResult(
-        status: j['status'] as String? ?? '',
-        score: (j['score'] as num?)?.toDouble() ?? 0.0,
+  final List<String> failureReasons;
+  const QualityResult({
+    required this.status,
+    required this.score,
+    this.failureReasons = const [],
+  });
+  factory QualityResult.fromJson(Map<String, dynamic>? j) => QualityResult(
+        status: j?['status'] as String? ?? '',
+        score: (j?['score'] as num?)?.toDouble() ?? 0.0,
+        failureReasons: (j?['failure_reasons'] as List<dynamic>? ?? [])
+            .whereType<String>()
+            .toList(),
+      );
+}
+
+class ModelInfo {
+  final String name;
+  final String version;
+  const ModelInfo({required this.name, required this.version});
+  factory ModelInfo.fromJson(Map<String, dynamic>? j) => ModelInfo(
+        name: j?['name'] as String? ?? '',
+        version: j?['version'] as String? ?? '',
       );
 }
 
@@ -130,7 +193,9 @@ class PredictionData {
   final List<double> confidenceInterval95;
   final String confidenceStatus;
   final QualityResult quality;
+  final String roiStatus;
   final String recommendation;
+  final ModelInfo model;
   const PredictionData({
     required this.estimatedHb,
     required this.unit,
@@ -138,7 +203,9 @@ class PredictionData {
     required this.confidenceInterval95,
     required this.confidenceStatus,
     required this.quality,
+    required this.roiStatus,
     required this.recommendation,
+    required this.model,
   });
   factory PredictionData.fromJson(Map<String, dynamic> j) {
     final interval = (j['confidence_interval_95'] as List<dynamic>? ?? [])
@@ -152,8 +219,11 @@ class PredictionData {
       confidenceInterval95: interval,
       confidenceStatus: j['confidence_status'] as String? ?? 'UNKNOWN',
       quality: QualityResult.fromJson(
-          j['image_quality'] as Map<String, dynamic>? ?? {}),
+          j['image_quality'] as Map<String, dynamic>?),
+      roiStatus:
+          ((j['roi'] as Map<String, dynamic>?)?['status']) as String? ?? '',
       recommendation: j['recommendation'] as String? ?? '',
+      model: ModelInfo.fromJson(j['model'] as Map<String, dynamic>?),
     );
   }
 }
@@ -163,47 +233,112 @@ class PredictionResult {
   final PredictionStatus status;
   final PredictionData? data;
   final String? message;
+
+  /// True when the user can simply re-run the analysis (e.g. transient
+  /// network/server errors) instead of recapturing the image.
+  final bool canRetryUpload;
+
   const PredictionResult({
     required this.success,
     required this.status,
     this.data,
     this.message,
+    this.canRetryUpload = false,
   });
 
-  factory PredictionResult.fromJson(Map<String, dynamic> j) {
+  factory PredictionResult.fromJson(
+    Map<String, dynamic> j, {
+    int httpStatus = 200,
+  }) {
     final raw = j['status'] as String? ?? '';
+    final errorCode = (j['error'] as Map<String, dynamic>?)?['code'] as String?;
     final success = j['success'] as bool? ?? false;
     final data = j['data'] as Map<String, dynamic>?;
+
+    final parsedData =
+        success && data != null && data['estimated_hb_g_dl'] != null
+            ? PredictionData.fromJson(data)
+            : null;
+
     return PredictionResult(
       success: success,
-      status: _parseStatus(raw),
-      data: success && data != null && data['estimated_hb_g_dl'] != null
-          ? PredictionData.fromJson(data)
-          : null,
-      message: (j['message'] as String?) ?? (data?['message'] as String?),
+      status: _parseStatus(raw, errorCode),
+      data: parsedData,
+      message: (j['message'] as String?) ??
+          (data?['message'] as String?) ??
+          _fallbackMessageFor(raw, success, parsedData != null),
+      canRetryUpload: _isRetryable(raw, success, parsedData != null),
     );
+  }
+
+  static String? _fallbackMessageFor(
+      String status, bool success, bool hasData) {
+    if (success && hasData) return null;
+    switch (status) {
+      case 'IMAGE_QUALITY_FAILED':
+        return 'Image quality is not sufficient for screening.';
+      case 'EYE_NOT_DETECTED':
+        return 'Eye not detected. Please capture a clear image of your eye.';
+      case 'CONJUNCTIVA_NOT_DETECTED':
+        return 'Conjunctiva not detected. Please make sure the inner eyelid is clearly visible.';
+      case 'ROI_QUALITY_FAILED':
+        return 'Image quality is insufficient. Please retake the image.';
+      case 'ROI_FAILED':
+        return 'We could not reliably identify the required region.';
+      case 'MODEL_NOT_READY':
+        return 'Screening service is temporarily unavailable.';
+      case 'INFERENCE_ERROR':
+        return 'Analysis failed on the server. Please try again.';
+      case 'VALIDATION_ERROR':
+        return 'The uploaded image was rejected. Please retake it.';
+      case 'INTERNAL_ERROR':
+        return 'An unexpected server error occurred. Please try again.';
+      default:
+        return success ? null : 'Unexpected response from the server.';
+    }
+  }
+
+  static bool _isRetryable(String status, bool success, bool hasData) {
+    if (success && hasData) return false;
+    switch (status) {
+      case 'INFERENCE_ERROR':
+      case 'INTERNAL_ERROR':
+        return true;
+      default:
+        return false;
+    }
   }
 
   factory PredictionResult.networkError() => const PredictionResult(
         success: false,
         status: PredictionStatus.networkError,
+        canRetryUpload: true,
         message:
-            'Cannot reach the server. Make sure your phone and computer are on the same Wi-Fi network.',
+            'Cannot reach the server. Make sure your phone and computer are '
+            'on the same Wi-Fi network.',
       );
 
   factory PredictionResult.notConfigured() => const PredictionResult(
         success: false,
         status: PredictionStatus.notConfigured,
-        message: 'Server URL not configured. Please set it in Account → Server Settings.',
+        message:
+            'Server URL not configured. Please set it in Account → Server '
+            'Settings.',
       );
 
-  factory PredictionResult.parseError() => const PredictionResult(
+  factory PredictionResult.parseError({int httpStatus = 0}) =>
+      PredictionResult(
         success: false,
         status: PredictionStatus.parseError,
-        message: 'Received an unexpected response from the server.',
+        canRetryUpload: true,
+        message: httpStatus > 0
+            ? 'Received an unexpected response from the server (HTTP '
+                '$httpStatus).'
+            : 'Received an unexpected response from the server.',
       );
 
-  static PredictionStatus _parseStatus(String s) {
+  static PredictionStatus _parseStatus(String s, [String? errorCode]) {
+    final effective = errorCode ?? s;
     switch (s) {
       case 'PREDICTION_COMPLETE':
         return PredictionStatus.predictionComplete;
@@ -211,12 +346,33 @@ class PredictionResult {
         return PredictionStatus.lowConfidence;
       case 'IMAGE_QUALITY_FAILED':
         return PredictionStatus.imageQualityFailed;
+      case 'EYE_NOT_DETECTED':
+        return PredictionStatus.eyeNotDetected;
+      case 'CONJUNCTIVA_NOT_DETECTED':
+        return PredictionStatus.conjunctivaNotDetected;
+      case 'ROI_QUALITY_FAILED':
+        return PredictionStatus.roiQualityFailed;
       case 'ROI_FAILED':
         return PredictionStatus.roiFailed;
       case 'MODEL_NOT_READY':
         return PredictionStatus.modelNotReady;
-      default:
+      case 'INFERENCE_ERROR':
+        return PredictionStatus.inferenceError;
+      case 'VALIDATION_ERROR':
+        return PredictionStatus.validationError;
+      case 'INTERNAL_ERROR':
         return PredictionStatus.unknownError;
+      default:
+        switch (effective) {
+          case 'EYE_NOT_DETECTED':
+            return PredictionStatus.eyeNotDetected;
+          case 'CONJUNCTIVA_NOT_DETECTED':
+            return PredictionStatus.conjunctivaNotDetected;
+          case 'ROI_QUALITY_FAILED':
+            return PredictionStatus.roiQualityFailed;
+          default:
+            return PredictionStatus.unknownError;
+        }
     }
   }
 }

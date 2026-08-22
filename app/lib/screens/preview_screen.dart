@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'result_screen.dart';
 
-/// Displays the captured image with Retake / Analyse actions.
-/// "Analyse" uploads to the backend and navigates to ResultScreen.
+/// Displays the captured image with Retake / Use This Image actions.
+///
+/// "Use This Image" uploads the real capture to the backend and navigates to
+/// the result report. No Hb value is computed or faked here — the backend's
+/// AI model is the only source of predictions.
 class PreviewScreen extends StatefulWidget {
   final String imagePath;
 
@@ -20,45 +24,76 @@ class _PreviewScreenState extends State<PreviewScreen> {
       TransformationController();
 
   bool _isAnalysing = false;
+  Timer? _stageTimer;
+  int _stageIndex = 0;
+
+  /// Honest progress stages — indeterminate, no fake percentages.
+  static const List<String> _stages = [
+    'Uploading image…',
+    'Checking image quality…',
+    'Estimating haemoglobin…',
+  ];
 
   @override
   void dispose() {
     _transformController.dispose();
+    _stageTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _analyse() async {
-    setState(() => _isAnalysing = true);
+  void _startStageTimer() {
+    _stageIndex = 0;
+    _stageTimer?.cancel();
+    _stageTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      setState(() {
+        _stageIndex = (_stageIndex + 1) % _stages.length;
+      });
+    });
+  }
 
-    final result = await ApiService.instance.predict(
-      File(widget.imagePath),
-    );
+  /// Basic client-side usability check (file exists, non-trivial size).
+  /// The authoritative image-quality check remains in the backend AI model.
+  bool _imageFileLooksUsable() {
+    final file = File(widget.imagePath);
+    try {
+      return file.existsSync() && file.lengthSync() >= 1024;
+    } catch (_) {
+      return false;
+    }
+  }
 
-    if (!mounted) return;
-    setState(() => _isAnalysing = false);
+  Future<void> _useThisImage() async {
+    if (_isAnalysing) return; // prevent duplicate submissions
 
-    // Handle quality failure inline — prompt to retake immediately
-    if (result.status == PredictionStatus.imageQualityFailed) {
+    if (!_imageFileLooksUsable()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
-            result.message ??
-                'Image quality insufficient. Please retake.',
-          ),
-          action: SnackBarAction(
-            label: 'Retake',
-            onPressed: () => Navigator.pop(context),
+            'This image could not be read. Please retake the photo.',
           ),
         ),
       );
       return;
     }
 
-    // Navigate to result screen for all other responses
+    setState(() => _isAnalysing = true);
+    _startStageTimer();
+
+    final result = await ApiService.instance.predict(
+      File(widget.imagePath),
+    );
+
+    _stageTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _isAnalysing = false);
+
+    // All outcomes — success, low confidence, quality/ROI failure, model
+    // unavailable, network errors — are reported on the result screen.
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => ResultScreen(result: result),
+        builder: (_) => ResultScreen(result: result, imagePath: widget.imagePath),
       ),
     );
   }
@@ -79,6 +114,19 @@ class _PreviewScreenState extends State<PreviewScreen> {
               child: Image.file(
                 File(widget.imagePath),
                 fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image_outlined,
+                        size: 64, color: Colors.white38),
+                    SizedBox(height: 12),
+                    Text(
+                      'Image could not be displayed.\nPlease retake the photo.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -148,7 +196,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
               ),
             ),
 
-          // ── Analysing overlay ──────────────────────
+          // ── Analysing overlay (staged, indeterminate) ──
           if (_isAnalysing)
             Container(
               color: Colors.black.withValues(alpha: 0.65),
@@ -176,17 +224,21 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      'Analysing image…',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 350),
+                      child: Text(
+                        _stages[_stageIndex],
+                        key: ValueKey<int>(_stageIndex),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Sending to HemoScan AI server',
+                      'Running AI analysis on the server',
                       style: TextStyle(
                           color: Colors.white54, fontSize: 13),
                     ),
@@ -237,10 +289,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _analyse,
+                          onPressed: _useThisImage,
                           icon:
                               const Icon(Icons.analytics_rounded),
-                          label: const Text('Analyse'),
+                          label: const Text('Use This Image'),
                           style: ElevatedButton.styleFrom(
                             padding:
                                 const EdgeInsets.symmetric(

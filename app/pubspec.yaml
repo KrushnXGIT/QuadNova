@@ -39,6 +39,9 @@ dependencies:
   camera: ^0.11.1
   path_provider: ^2.1.5
 
+  # Runtime camera permission handling (granted / denied / permanently denied)
+  permission_handler: ^11.3.1
+
   # UI & Auth
   google_fonts: ^6.2.1
   pinput: ^5.0.1

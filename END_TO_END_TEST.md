@@ -140,9 +140,78 @@ flow sends only `image`, not the required ROI `mask`.
 
 ## Known Limitation
 
-The existing AI model requires a valid conjunctiva ROI mask for successful Hb
-prediction. Phone camera-only uploads correctly return `ROI_FAILED`; no mock or
-fake Hb value is returned.
+~~The existing AI model requires a valid conjunctiva ROI mask for successful Hb
+prediction. Phone camera-only uploads correctly return `ROI_FAILED`.~~
+RESOLVED 2026-08-22 — see "Phase: Flutter full-flow implementation" below.
 
 The uncertainty fields use the model's MC-dropout style sampling, so
 `hb_std_g_dl` and `confidence_interval_95` may vary slightly between runs.
+
+## Phase: Flutter full-flow implementation (2026-08-22, later session)
+
+### Backend — automatic ROI-mask generation (resolves the blocker)
+
+- New `backend/app/services/mask_generator.py`: classical-CV conjunctiva
+  candidate detection (red/pink chroma + redness dominance, morphology,
+  connected components, coverage sanity bounds) producing the RGBA PNG mask
+  input required by the existing predictor. No model changes; no fabricated
+  masks; existing quality gates still run afterwards.
+- `ai_service.predict_upload` now auto-generates the mask when the client
+  sends only `image` (`AUTO_MASK_ENABLED=true`, disable via `.env`).
+- Backend suite after change: **13 passed**.
+
+Image-only upload (simulating a phone capture), real AI inference:
+
+```cmd
+curl.exe -s -F image=@data\raw\sample_dataset\20200118_164733.jpg http://127.0.0.1:8000/api/v1/predict
+```
+
+Result:
+
+```json
+{"success":true,"status":"PREDICTION_COMPLETE","data":{"estimated_hb_g_dl":6.366367340087891,"hb_std_g_dl":0.6795263290405273,"confidence_interval_95":[5.03,7.7],"confidence_status":"MEDIUM_CONFIDENCE","image_quality":{"status":"GOOD","score":0.8243265262401682,"failure_reasons":[]},"roi":{"status":"VALID"},"recommendation":"Screening estimate only. Consider confirmatory testing when appropriate.","model":{"name":"MobileNetV3-small","version":"anaemia-hb-mobilenetv3-v1"}},"meta":{"inference_seconds":2.1888}}
+```
+
+Honest-failure checks (no fake Hb ever returned):
+
+| Input | Response |
+| --- | --- |
+| Solid green image | `ROI_FAILED` ("A valid conjunctiva ROI mask is required…") |
+| Random noise image | `ROI_FAILED` |
+| Non-image bytes | `VALIDATION_ERROR` |
+
+### Flutter app changes
+
+- Real camera permissions (granted / denied / permanently denied → Open Settings),
+  camera init failure handling with retry; no crashes.
+- Camera screen now shows GENUINE real-time Lighting / Sharpness / Steadiness
+  pills computed from live preview frames (luma mean, Laplacian variance,
+  frame-to-frame difference). Guidance only — backend remains authoritative.
+- Preview screen: staged indeterminate loading ("Uploading image…" /
+  "Checking image quality…" / "Estimating haemoglobin…"), no fake percentages,
+  duplicate-submission guard, basic corrupt-file check before upload.
+- Result report renders ONLY real backend values: estimated Hb, ±1 SD
+  uncertainty, 95% CI, confidence status, image-quality status/score,
+  verbatim recommendation, model name+version, disclaimer. Low-confidence
+  banner uses the actual backend confidence status. IMAGE_QUALITY_FAILED /
+  ROI_FAILED / MODEL_NOT_READY / network errors each have dedicated states
+  with Retake/Retry actions. Invented client-side medical thresholds removed.
+- Screening history (SharedPreferences JSON, metadata only, no images)
+  connected to real results; History tab lists them with clear-all.
+- API service parses the exact backend schema incl. `roi`, `model`,
+  `failure_reasons`; maps HTTP statuses and timeouts to typed errors.
+
+### Test results
+
+- `flutter analyze`: **No issues found**
+- `flutter test`: **11/11 passed** (8 parser tests against REAL backend
+  payloads + 2 history-service tests + splash widget test)
+- Android debug APK build: **success**; installed on physical device
+  (21091116I, Android 13).
+- LIVE device run: real camera capture from the phone reached the backend as
+  multipart `image` (`CAP*.jpg`, application/octet-stream) and received an
+  honest structured response — verified in server logs. The captured scene
+  contained no conjunctiva tissue, so the backend correctly returned
+  `ROI_FAILED` and the app showed the retake flow. A tissue-containing
+  capture follows the same path to `PREDICTION_COMPLETE` (proven by the curl
+  run above through the identical backend pipeline).

@@ -73,10 +73,21 @@ FastAPI (`backend/`) -> existing Python model (`ai_model/`). Flutter does not
 execute the Python model directly.
 
 The backend now loads the existing `ai_model/models/hb_regressor_best.pt`
-checkpoint through `ai_model/src/inference/predictor.py::AnaemiaPredictor` and
-returns the predictor's real JSON output. The current model contract requires an
-ROI mask for successful inference; phone camera-only uploads correctly return
-`ROI_FAILED` until the ROI-mask flow is implemented.
+checkpoint through `ai_model/src/inference/predictor.py::AnaemiaPredictor`.
+Phone uploads pass through a mandatory server-side input-domain gate before
+regression:
+
+```text
+image -> conjunctiva candidate detection -> ROI quality gate
+	-> ROI-only normalization -> Hb regression -> uncertainty/confidence
+```
+
+The automatic detector uses conservative classical-CV chroma, connected
+component, coverage, and local eye-context checks. It is an input-domain guard,
+not true adversarial/OOD detection and is not clinically validated. If no valid
+conjunctiva region is detected, the backend returns `ROI_FAILED` with
+`error.code=CONJUNCTIVA_NOT_DETECTED`; no Hb value is returned and the
+regression predictor is not called.
 
 ## Development Philosophy
 
@@ -120,6 +131,6 @@ Each development phase should:
 
 ## Status
 
-Backend-to-AI masked inference is working and tested. Flutter response parsing
-has been updated for the real AI output fields. Successful phone-only inference
-is blocked by the current AI predictor's ROI mask requirement.
+Backend-to-AI inference and Flutter response parsing are working and tested.
+Flutter displays backend ROI/quality failures as a retake flow; the camera guide
+is guidance only and the backend remains authoritative.

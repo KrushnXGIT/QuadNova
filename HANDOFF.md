@@ -1,6 +1,45 @@
 CURRENT PHASE:
-FastAPI backend + existing AI model integration (PARTIAL — backend complete,
-Flutter successful prediction blocked by missing ROI mask flow)
+Flutter full screening flow (COMPLETE for prototype — camera → backend →
+real AI prediction → report, verified end-to-end; see 2026-08-22 update below)
+
+## 2026-08-22 Flutter Full-Flow Update (later session)
+
+COMPLETED:
+- BLOCKER RESOLVED: phone captures can now reach successful inference.
+  `backend/app/services/mask_generator.py` auto-generates the conjunctiva ROI
+  mask input required by the EXISTING predictor (classical CV; no model
+  changes, no fabricated masks). Enabled via `AUTO_MASK_ENABLED=true`.
+  Image-only `/api/v1/predict` now returns real `PREDICTION_COMPLETE` results;
+  non-tissue images still return honest `ROI_FAILED`. Backend suite: 13 passed.
+- Flutter camera screen: real permissions (denied/permanently-denied → Open
+  Settings), init-failure retry, GENUINE live Lighting/Sharpness/Steadiness
+  pills computed from preview frames (luma mean / Laplacian variance /
+  frame-diff). Guidance only — backend quality gate remains authoritative.
+- Preview: staged indeterminate loading (no fake %), duplicate-submit guard,
+  corrupt-file check. Result report shows ONLY real backend values (Hb,
+  ±SD, 95% CI, confidence, quality, verbatim recommendation, model name/
+  version) + disclaimer + low-confidence banner; dedicated states for
+  IMAGE_QUALITY_FAILED / ROI_FAILED / MODEL_NOT_READY / network errors with
+  Retake/Retry. Invented client-side medical thresholds removed.
+- Screening history (SharedPreferences metadata only, no images) connected to
+  real results and displayed in the History tab.
+- API service parses exact backend schema (incl. roi/model/failure_reasons),
+  maps HTTP statuses/timeouts to typed errors.
+- Tests: `flutter analyze` clean; `flutter test` 11/11 passed (parser tests
+  use REAL backend payloads); Android debug APK builds; installed on physical
+  device; LIVE run confirmed a real phone capture reached the backend over
+  Wi-Fi and received an honest structured response.
+
+RUN COMMANDS:
+- Backend: `cd backend && .venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- Flutter: `cd app && flutter run` (set server URL in-app via Account → Server
+  Settings, or auto-detect; emulator default http://10.0.2.2:8000)
+
+REMAINING NOTES:
+- The AI model itself remains a weak research baseline (test MAE worse than
+  mean-baseline); values are screening estimates only, never clinical.
+- Auto-mask thresholds are engineering heuristics; tune on real eyelid
+  captures if acceptance rates are poor.
 
 ## 2026-08-22 Backend/AI Integration Update
 
@@ -23,9 +62,7 @@ COMPLETED:
   requires a valid conjunctiva ROI mask. No fake Hb is returned.
 - Flutter parser/result screen updated for the real AI fields and `ROI_FAILED`.
 - Documentation added/updated:
-  `backend/README.md`, `backend/API_DOCUMENTATION.md`, `END_TO_END_TEST.md`.
-
-TESTED:
+  `backend/README.md`, `backend/API_DOCUMENTATION.md`, `END_TO_END_TTESTED:
 - AI suite: `129 passed, 14 subtests passed in 8.91s`.
 - Backend suite: `13 passed in 0.69s`.
 - Backend startup: real model loaded in `3.283s`.

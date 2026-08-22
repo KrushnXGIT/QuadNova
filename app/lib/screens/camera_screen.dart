@@ -1,13 +1,22 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../theme/app_theme.dart';
-import '../widgets/quality_indicator.dart';
 import '../widgets/eye_guide_overlay.dart';
+import '../widgets/quality_indicator.dart';
 
 /// Camera screening screen matching the HemoScan AI design.
 ///
-/// Quality indicator pills, eye guide overlay, zoom slider, shutter button.
+/// Real camera preview with permission handling, eye guide overlay,
+/// zoom slider and shutter button.
+///
+/// The Lighting / Sharpness / Steadiness pills show GENUINE real-time
+/// measurements computed from live preview frames (luma brightness,
+/// Laplacian-variance blur estimate, frame-to-frame motion). They are
+/// capture-guidance heuristics only — the authoritative image-quality
+/// decision always remains with the backend AI pipeline.
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
 
@@ -15,28 +24,43 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
+enum _CameraPhase {
+  requestingPermission,
+  permissionDenied,
+  permissionPermanentlyDenied,
+  initializing,
+  ready,
+  error,
+}
+
 class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
-  bool _isInitialised = false;
-  bool _isCapturing = false;
+  _CameraPhase _phase = _CameraPhase.requestingPermission;
   String? _errorMessage;
 
-  // Quality indicators (simulated)
+  // ── Real-time quality analysis state ──────────────────────
   QualityStatus _lightingStatus = QualityStatus.scanning;
   String _lightingValue = 'Checking';
   QualityStatus _sharpnessStatus = QualityStatus.scanning;
   String _sharpnessValue = 'Scanning';
-  QualityStatus _visibilityStatus = QualityStatus.scanning;
-  String _visibilityValue = 'Checking';
+  QualityStatus _steadinessStatus = QualityStatus.scanning;
+  String _steadinessValue = 'Checking';
 
-  // Zoom
+  Uint8List? _prevLuma; // previous downsampled luma grid (for motion)
+  int _prevLumaW = 0;
+  int _prevLumaH = 0;
+  DateTime _lastFrameAnalysis =
+      DateTime.fromMillisecondsSinceEpoch(0);
+  bool _isStreaming = false;
+
+  // ── Zoom ──────────────────────────────────────────────────
   double _currentZoom = 1.0;
   double _minZoom = 1.0;
   double _maxZoom = 2.0;
 
-  Timer? _qualityTimer;
+  bool _showHelp = false;
 
   // ── Lifecycle ─────────────────────────────────────────────
 
@@ -44,34 +68,64 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initCamera();
+    _ensurePermissionAndInit();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _qualityTimer?.cancel();
-    _controller?.dispose();
+    _disposeController();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_controller == null || !_controller!.value.isInitialized) return;
+    // Re-initialise when returning from app settings (permission grant) and
+    // release the camera when the app is backgrounded.
     if (state == AppLifecycleState.inactive) {
-      _controller?.dispose();
+      _disposeController();
     } else if (state == AppLifecycleState.resumed) {
-      _initCamera();
+      if (_phase == _CameraPhase.ready ||
+          _phase == _CameraPhase.permissionDenied ||
+          _phase == _CameraPhase.permissionPermanentlyDenied) {
+        _ensurePermissionAndInit();
+      }
     }
   }
 
-  // ── Init ──────────────────────────────────────────────────
+  // ── Permission + init ─────────────────────────────────────
+
+  Future<void> _ensurePermissionAndInit() async {
+    setState(() => _phase = _CameraPhase.requestingPermission);
+
+    final status = await Permission.camera.status;
+    PermissionStatus effective = status;
+    if (status.isDenied || status.isRestricted) {
+      effective = await Permission.camera.request();
+    }
+
+    if (!mounted) return;
+    if (effective.isPermanentlyDenied || effective.isRestricted) {
+      setState(() => _phase = _CameraPhase.permissionPermanentlyDenied);
+      return;
+    }
+    if (!effective.isGranted) {
+      setState(() => _phase = _CameraPhase.permissionDenied);
+      return;
+    }
+
+    await _initCamera();
+  }
 
   Future<void> _initCamera() async {
+    setState(() => _phase = _CameraPhase.initializing);
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
-        setState(() => _errorMessage = 'No cameras found on this device.');
+        setState(() {
+          _phase = _CameraPhase.error;
+          _errorMessage = 'No cameras were found on this device.';
+        });
         return;
       }
 
@@ -80,81 +134,259 @@ class _CameraScreenState extends State<CameraScreen>
         orElse: () => _cameras.first,
       );
 
-      _controller = CameraController(
+      final controller = CameraController(
         backCamera,
         ResolutionPreset.high,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
-      await _controller!.initialize();
+      await controller.initialize();
 
-      // Get zoom range
-      _minZoom = await _controller!.getMinZoomLevel();
-      _maxZoom = await _controller!.getMaxZoomLevel();
-      // Cap max zoom at 2x for UI slider
-      if (_maxZoom > 2.0) _maxZoom = 2.0;
+      double minZoom = 1.0;
+      double maxZoom = 2.0;
+      try {
+        minZoom = await controller.getMinZoomLevel();
+        maxZoom = await controller.getMaxZoomLevel();
+        if (maxZoom > 2.0) maxZoom = 2.0;
+      } catch (_) {
+        // Zoom unsupported — keep defaults.
+      }
 
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+
+      _disposeController();
+      setState(() {
+        _controller = controller;
+        _minZoom = minZoom;
+        _maxZoom = maxZoom;
+        _currentZoom = minZoom < 1.0 ? 1.0 : minZoom;
+        _phase = _CameraPhase.ready;
+        _errorMessage = null;
+        _resetQualityPills();
+      });
+
+      await _startFrameAnalysis();
+    } catch (_) {
       if (!mounted) return;
-      setState(() => _isInitialised = true);
-
-      _startQualitySimulation();
-    } catch (e) {
-      setState(() => _errorMessage = 'Camera error: $e');
+      setState(() {
+        _phase = _CameraPhase.error;
+        _errorMessage =
+            'The camera could not be started. Close other apps using the '
+            'camera and try again.';
+      });
     }
   }
 
-  /// Simulate quality indicators updating over time.
-  void _startQualitySimulation() {
-    // Simulate: after 1.5s lighting becomes Good, after 2.5s visibility, after 3.5s sharpness
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        setState(() {
-          _lightingStatus = QualityStatus.good;
-          _lightingValue = 'Good';
-        });
+  void _resetQualityPills() {
+    _lightingStatus = QualityStatus.scanning;
+    _lightingValue = 'Checking';
+    _sharpnessStatus = QualityStatus.scanning;
+    _sharpnessValue = 'Scanning';
+    _steadinessStatus = QualityStatus.scanning;
+    _steadinessValue = 'Checking';
+    _prevLuma = null;
+  }
+
+  void _disposeController() {
+    final controller = _controller;
+    _controller = null;
+    _isStreaming = false;
+    controller?.dispose();
+  }
+
+  // ── Real-time frame analysis ──────────────────────────────
+
+  Future<void> _startFrameAnalysis() async {
+    final controller = _controller;
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        _isStreaming) {
+      return;
+    }
+    try {
+      await controller.startImageStream(_onCameraFrame);
+      _isStreaming = true;
+    } catch (_) {
+      // Analysis is best-effort guidance; capture still works without it.
+    }
+  }
+
+  Future<void> _stopFrameAnalysis() async {
+    if (!_isStreaming) return;
+    _isStreaming = false;
+    try {
+      await _controller?.stopImageStream();
+    } catch (_) {
+      // ignore — controller may already be disposed
+    }
+  }
+
+  /// Runs on every camera frame (throttled internally). Computes three
+  /// genuine signals from the luma plane:
+  ///   1. Lighting  — mean luma brightness.
+  ///   2. Sharpness — variance of the Laplacian (low variance ⇒ blur).
+  ///   3. Steadiness— mean absolute frame-to-frame luma difference.
+  void _onCameraFrame(CameraImage image) {
+    final now = DateTime.now();
+    if (now.difference(_lastFrameAnalysis).inMilliseconds < 400) return;
+    _lastFrameAnalysis = now;
+
+    final plane = image.planes.first;
+    final bytes = plane.bytes;
+    final int width = image.width;
+    final int height = image.height;
+    final int rowStride = plane.bytesPerRow;
+    if (bytes.isEmpty || width < 32 || height < 32) return;
+
+    // Downsample the luma plane to a small grid for cheap analysis.
+    const int gridW = 96;
+    const int gridH = 72;
+    final luma = Uint8List(gridW * gridH);
+    double sum = 0;
+    for (int gy = 0; gy < gridH; gy++) {
+      final int sy = (gy * height) ~/ gridH;
+      final int rowStart = sy * rowStride;
+      for (int gx = 0; gx < gridW; gx++) {
+        final int sx = (gx * width) ~/ gridW;
+        final int idx = rowStart + sx;
+        if (idx >= bytes.length) continue;
+        final int v = bytes[idx];
+        luma[gy * gridW + gx] = v;
+        sum += v;
       }
-    });
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        setState(() {
-          _visibilityStatus = QualityStatus.good;
-          _visibilityValue = 'Visible';
-        });
+    }
+    final double meanLuma = sum / (gridW * gridH);
+
+    // 1) Lighting — mean brightness of the scene.
+    QualityStatus lightingStatus;
+    String lightingValue;
+    if (meanLuma < 55) {
+      lightingStatus = QualityStatus.poor;
+      lightingValue = 'Too dark';
+    } else if (meanLuma > 205) {
+      lightingStatus = QualityStatus.poor;
+      lightingValue = 'Too bright';
+    } else {
+      lightingStatus = QualityStatus.good;
+      lightingValue = 'Good';
+    }
+
+    // 2) Sharpness — Laplacian variance on the luma grid.
+    double lapSum = 0;
+    double lapSqSum = 0;
+    int lapCount = 0;
+    for (int y = 1; y < gridH - 1; y++) {
+      for (int x = 1; x < gridW - 1; x++) {
+        final int c = luma[y * gridW + x];
+        final int lap = 4 * c -
+            luma[(y - 1) * gridW + x] -
+            luma[(y + 1) * gridW + x] -
+            luma[y * gridW + x - 1] -
+            luma[y * gridW + x + 1];
+        lapSum += lap;
+        lapSqSum += lap * lap;
+        lapCount++;
       }
-    });
-    Future.delayed(const Duration(milliseconds: 3500), () {
-      if (mounted) {
-        setState(() {
-          _sharpnessStatus = QualityStatus.good;
-          _sharpnessValue = 'Sharp';
-        });
+    }
+    QualityStatus sharpnessStatus;
+    String sharpnessValue;
+    if (lapCount > 0) {
+      final double lapMean = lapSum / lapCount;
+      final double lapVar = lapSqSum / lapCount - lapMean * lapMean;
+      if (lapVar < 30) {
+        sharpnessStatus = QualityStatus.poor;
+        sharpnessValue = 'Blurry';
+      } else {
+        sharpnessStatus = QualityStatus.good;
+        sharpnessValue = 'Sharp';
       }
+    } else {
+      sharpnessStatus = QualityStatus.scanning;
+      sharpnessValue = 'Scanning';
+    }
+
+    // 3) Steadiness — frame-to-frame mean absolute difference.
+    QualityStatus steadinessStatus;
+    String steadinessValue;
+    final prev = _prevLuma;
+    if (prev != null &&
+        _prevLumaW == gridW &&
+        _prevLumaH == gridH &&
+        prev.length == luma.length) {
+      double diffSum = 0;
+      for (int i = 0; i < luma.length; i++) {
+        diffSum += (luma[i] - prev[i]).abs();
+      }
+      final double meanDiff = diffSum / luma.length;
+      if (meanDiff > 14) {
+        steadinessStatus = QualityStatus.poor;
+        steadinessValue = 'Shaky';
+      } else {
+        steadinessStatus = QualityStatus.good;
+        steadinessValue = 'Steady';
+      }
+    } else {
+      steadinessStatus = QualityStatus.scanning;
+      steadinessValue = 'Checking';
+    }
+    _prevLuma = Uint8List.fromList(luma);
+    _prevLumaW = gridW;
+    _prevLumaH = gridH;
+
+    if (!mounted) return;
+    setState(() {
+      _lightingStatus = lightingStatus;
+      _lightingValue = lightingValue;
+      _sharpnessStatus = sharpnessStatus;
+      _sharpnessValue = sharpnessValue;
+      _steadinessStatus = steadinessStatus;
+      _steadinessValue = steadinessValue;
     });
   }
 
   // ── Actions ───────────────────────────────────────────────
 
   Future<void> _captureImage() async {
-    if (_controller == null ||
-        !_controller!.value.isInitialized ||
-        _isCapturing) {
+    final controller = _controller;
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        controller.value.isTakingPicture) {
       return;
     }
 
-    setState(() => _isCapturing = true);
-
     try {
-      final XFile file = await _controller!.takePicture();
+      // Pause frame analysis while capturing/reviewing.
+      await _stopFrameAnalysis();
+      final XFile file = await controller.takePicture();
       if (!mounted) return;
-      Navigator.pushNamed(context, '/preview', arguments: file.path);
-    } catch (e) {
+      // Pause the preview while the user reviews the capture.
+      await controller.pausePreview();
+      if (!mounted) return;
+      await Navigator.pushNamed(context, '/preview', arguments: file.path);
+      if (!mounted) return;
+      // Resume preview + analysis when returning for a retake.
+      if (controller.value.isInitialized) {
+        try {
+          await controller.resumePreview();
+          await _startFrameAnalysis();
+        } catch (_) {
+          await _initCamera();
+        }
+      }
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Capture failed: $e')),
+          const SnackBar(
+            content: Text('Capture failed. Please try again.'),
+          ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isCapturing = false);
+      // Best-effort restart of the guidance stream.
+      await _startFrameAnalysis();
     }
   }
 
@@ -163,17 +395,24 @@ class _CameraScreenState extends State<CameraScreen>
     _controller?.setZoomLevel(value);
   }
 
+  void _openHelp() => setState(() => _showHelp = true);
+
   // ── Build ─────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _errorMessage != null
-          ? _buildError()
-          : !_isInitialised
-              ? _buildLoading()
-              : _buildCamera(),
+      body: switch (_phase) {
+        _CameraPhase.requestingPermission ||
+        _CameraPhase.initializing =>
+          _buildLoading(),
+        _CameraPhase.permissionDenied => _buildPermissionDenied(),
+        _CameraPhase.permissionPermanentlyDenied =>
+          _buildPermissionPermanentlyDenied(),
+        _CameraPhase.error => _buildError(),
+        _CameraPhase.ready => _buildCamera(),
+      },
     );
   }
 
@@ -184,31 +423,125 @@ class _CameraScreenState extends State<CameraScreen>
         children: [
           CircularProgressIndicator(color: Colors.white70),
           SizedBox(height: 16),
-          Text('Initialising camera…',
+          Text('Preparing camera…',
               style: TextStyle(color: Colors.white70)),
         ],
       ),
     );
   }
 
+  Widget _buildPermissionDenied() {
+    return _buildMessageScreen(
+      icon: Icons.no_photography_outlined,
+      title: 'Camera Access Needed',
+      message:
+          'HemoScan AI needs camera access to capture the inner-eyelid image '
+          'used for screening. Your photo is sent only to your screening '
+          'server for analysis.',
+      actions: [
+        ElevatedButton.icon(
+          onPressed: _ensurePermissionAndInit,
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Grant Permission'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPermissionPermanentlyDenied() {
+    return _buildMessageScreen(
+      icon: Icons.block_rounded,
+      title: 'Camera Permission Blocked',
+      message:
+          'Camera access is permanently disabled for this app. Enable it in '
+          'system settings to continue with image-based screening.',
+      actions: [
+        ElevatedButton.icon(
+          onPressed: () => openAppSettings(),
+          icon: const Icon(Icons.settings_rounded, size: 18),
+          label: const Text('Open Settings'),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: _ensurePermissionAndInit,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white54),
+          ),
+          child: const Text('Check Again'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildError() {
-    return Center(
+    return _buildMessageScreen(
+      icon: Icons.error_outline_rounded,
+      title: 'Camera Unavailable',
+      message: _errorMessage ?? 'The camera could not be started.',
+      actions: [
+        ElevatedButton.icon(
+          onPressed: _ensurePermissionAndInit,
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Retry'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMessageScreen({
+    required IconData icon,
+    required String title,
+    required String message,
+    required List<Widget> actions,
+  }) {
+    return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
+            Center(
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 38, color: Colors.white70),
+              ),
             ),
             const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ...actions,
+            const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+              ),
               child: const Text('Go Back'),
             ),
           ],
@@ -235,7 +568,7 @@ class _CameraScreenState extends State<CameraScreen>
           ),
         ),
 
-        // ── Eye guide overlay ───────────────────────
+        // ── Eye guide overlay (positioning aid only) ─
         const EyeGuideOverlay(),
 
         // ── Top bar ─────────────────────────────────
@@ -263,9 +596,7 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                   _circleButton(
                     icon: Icons.help_outline_rounded,
-                    onTap: () {
-                      // TODO: Show help dialog
-                    },
+                    onTap: _openHelp,
                   ),
                 ],
               ),
@@ -273,7 +604,7 @@ class _CameraScreenState extends State<CameraScreen>
           ),
         ),
 
-        // ── Quality indicators ──────────────────────
+        // ── Live quality indicators (real measurements) ──
         Positioned(
           top: MediaQuery.of(context).padding.top + 56,
           left: 0,
@@ -296,9 +627,9 @@ class _CameraScreenState extends State<CameraScreen>
                   status: _sharpnessStatus,
                 ),
                 QualityIndicator(
-                  label: 'Visibility',
-                  value: _visibilityValue,
-                  status: _visibilityStatus,
+                  label: 'Steadiness',
+                  value: _steadinessValue,
+                  status: _steadinessStatus,
                 ),
               ],
             ),
@@ -312,13 +643,14 @@ class _CameraScreenState extends State<CameraScreen>
           right: 24,
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Text(
-                'Pull down lower eyelid and align\nconjunctiva within guide.',
+                'Pull down the lower eyelid and align the\ninner eyelid '
+                '(conjunctiva) inside the guide area.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,
@@ -369,7 +701,7 @@ class _CameraScreenState extends State<CameraScreen>
                             ),
                           ),
                           child: Slider(
-                            value: _currentZoom,
+                            value: _currentZoom.clamp(_minZoom, _maxZoom),
                             min: _minZoom,
                             max: _maxZoom,
                             onChanged: _onZoomChanged,
@@ -392,23 +724,21 @@ class _CameraScreenState extends State<CameraScreen>
 
                 // Shutter button
                 GestureDetector(
+                  key: const ValueKey('shutter_button'),
                   onTap: _captureImage,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    width: _isCapturing ? 62 : 72,
-                    height: _isCapturing ? 62 : 72,
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 4),
-                      color: _isCapturing ? Colors.white24 : Colors.transparent,
                     ),
                     child: Container(
                       margin: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _isCapturing
-                            ? Colors.white54
-                            : Colors.white,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -419,7 +749,92 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
         ),
+
+        // ── Help sheet ──────────────────────────────
+        if (_showHelp) _buildHelpSheet(),
       ],
+    );
+  }
+
+  Widget _buildHelpSheet() {
+    return GestureDetector(
+      onTap: () => setState(() => _showHelp = false),
+      child: Container(
+        color: Colors.black54,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(28),
+        child: GestureDetector(
+          onTap: () {}, // swallow taps inside the card
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceWhite,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'How to capture',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.slateInk,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _helpRow('1.',
+                    'Gently pull down your lower eyelid to expose the inner eyelid.'),
+                _helpRow('2.',
+                    'Position the pink inner-eyelid area inside the guide box.'),
+                _helpRow('3.',
+                    'Use good, even lighting. Avoid strong shadows and flash glare.'),
+                _helpRow('4.',
+                    'Hold the phone steady and capture only when the image is clear.'),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _showHelp = false),
+                    child: const Text('Got it'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _helpRow(String num, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            num,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.terracotta,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppTheme.slateMid,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

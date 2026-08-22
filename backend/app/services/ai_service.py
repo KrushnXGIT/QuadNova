@@ -14,6 +14,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .input_domain_gate import (
+    DomainGateResult,
+    build_rejection_payload,
+    validate_conjunctiva_input,
+)
 from ..core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -96,7 +101,15 @@ class AIService:
         mask_suffix: str = ".png",
         subject_id: str = "api_upload",
     ) -> dict[str, Any]:
-        """Run existing AI inference for uploaded bytes."""
+        """Run the inference firewall, then existing AI inference for uploads.
+
+        MANDATORY FLOW (fail-closed):
+            1. validate_conjunctiva_input()  <- the ONLY route to the model
+            2. if invalid  -> structured rejection; predictor NEVER called
+            3. if valid    -> predict_from_path with the VALIDATED mask only
+        """
+        logger.info("REQUEST RECEIVED | subject=%s | bytes=%d", subject_id, len(image_bytes))
+
         if not self.is_ready():
             return {
                 "success": False,
@@ -106,6 +119,36 @@ class AIService:
                     "message": "The AI screening model is not currently available.",
                 },
             }
+
+        # ── INFERENCE FIREWALL — single mandatory validation checkpoint ───
+        logger.info("VALIDATION START")
+        try:
+            gate_result = validate_conjunctiva_input(image_bytes, mask_bytes)
+        except Exception:
+            # Fail closed: an exception inside validation must never reach the
+            # Hb model. Report a structured rejection instead.
+            logger.error("Domain gate raised unexpectedly", exc_info=True)
+            gate_failure = DomainGateResult(
+                valid=False,
+                status="INVALID_INPUT",
+                error={
+                    "code": "VALIDATION_FAILED",
+                    "message": "The image could not be validated.",
+                    "retryable": True,
+                },
+                validation={"domain": None, "mask_source": None, "roi_quality": None},
+            )
+            return build_rejection_payload(gate_failure)
+
+        if not gate_result.valid:
+            rejection = build_rejection_payload(gate_result)
+            logger.info(
+                "HB MODEL INVOKED=NO | reason=%s",
+                gate_result.error_code,
+            )
+            return self._sanitize_result(rejection)
+
+        assert gate_result.validated_mask_png is not None  # guaranteed by gate
 
         image_suffix = image_suffix if image_suffix.startswith(".") else ".jpg"
         mask_suffix = mask_suffix if mask_suffix.startswith(".") else ".png"
@@ -117,10 +160,17 @@ class AIService:
                 image_tmp.write(image_bytes)
                 image_path = Path(image_tmp.name)
 
-            if mask_bytes is not None:
-                with tempfile.NamedTemporaryFile(suffix=mask_suffix, delete=False) as mask_tmp:
-                    mask_tmp.write(mask_bytes)
-                    mask_path = Path(mask_tmp.name)
+            # ONLY the gate-validated mask may be used for ROI extraction.
+            with tempfile.NamedTemporaryFile(suffix=mask_suffix, delete=False) as mask_tmp:
+                mask_tmp.write(gate_result.validated_mask_png)
+                mask_path = Path(mask_tmp.name)
+
+            logger.info(
+                "DOMAIN RESULT=%s ROI RESULT=%s QUALITY RESULT=%s",
+                gate_result.validation.get("domain") or "VALID",
+                "VALID",
+                (gate_result.validation.get("roi_quality") or {}).get("quality_status"),
+            )
 
             start = time.perf_counter()
             result = self._predictor.predict_from_path(
@@ -132,6 +182,13 @@ class AIService:
                 time.perf_counter() - start,
                 4,
             )
+            result.setdefault("validation", {})["domain_gate"] = {
+                k: v for k, v in gate_result.validation.items()
+                if k != "roi_quality"
+            }
+            result["validation"]["inference_authorized"] = True
+            hb_invoked = bool(result.get("success"))
+            logger.info("HB MODEL INVOKED=%s", "YES" if hb_invoked else "NO")
             return self._sanitize_result(result)
         except Exception as exc:
             logger.error("AI inference failed: %s", exc, exc_info=True)
@@ -155,6 +212,31 @@ class AIService:
     def _sanitize_result(self, result: dict[str, Any]) -> dict[str, Any]:
         """Keep structured AI output but avoid leaking internal paths/details."""
         if result.get("success") is True:
+            data = result.get("data")
+            required = (
+                "estimated_hb_g_dl", "hb_std_g_dl", "confidence_interval_95",
+                "confidence_status", "image_quality", "roi", "model",
+            )
+            if (
+                result.get("status") != "PREDICTION_COMPLETE"
+                or not isinstance(data, dict)
+                or any(key not in data for key in required)
+                or result.get("validation", {}).get("inference_authorized") is not True
+            ):
+                logger.error("Rejecting incomplete or unauthorized prediction payload")
+                return {
+                    "success": False,
+                    "status": "INFERENCE_ERROR",
+                    "error": {
+                        "code": "UNAUTHORIZED_PREDICTION",
+                        "message": "The prediction did not pass the validated ROI contract.",
+                        "retryable": True,
+                    },
+                    "data": {
+                        "retry": True,
+                        "message": "The image could not be processed safely. Please retake it.",
+                    },
+                }
             return result
 
         status = result.get("status")
@@ -163,6 +245,40 @@ class AIService:
             data["message"] = "The AI screening model is not currently available."
         elif status == "INFERENCE_ERROR":
             data["message"] = "Inference failed. Please try again."
+        elif status in {"INVALID_INPUT", "EYE_NOT_DETECTED", "CONJUNCTIVA_NOT_DETECTED", "ROI_QUALITY_FAILED"}:
+            error = result.setdefault(
+                "error",
+                {"code": "CONJUNCTIVA_NOT_DETECTED", "message": "", "retryable": True},
+            )
+            code = error.get("code", "")
+            if code == "ROI_QUALITY_FAILED":
+                data.setdefault(
+                    "message",
+                    "The image quality is insufficient. Please retake the image.",
+                )
+                error.setdefault(
+                    "message",
+                    "The detected region is not usable for screening "
+                    "(sharpness/exposure/resolution).",
+                )
+            elif code in {"ROI_MASK_INVALID", "IMAGE_UNREADABLE"}:
+                data.setdefault("message", "The uploaded file could not be used.")
+            else:
+                data.setdefault(
+                    "message",
+                    "Conjunctiva not detected. Please position the inner eyelid "
+                    "correctly and capture the image again.",
+                )
+            # Hard guarantee: a rejection payload NEVER carries prediction data.
+            for forbidden in (
+                "estimated_hb_g_dl",
+                "hb_std_g_dl",
+                "confidence_interval_95",
+                "confidence_status",
+                "recommendation",
+            ):
+                data.pop(forbidden, None)
+                result.pop(forbidden, None)
         elif status == "ROI_FAILED":
             data.setdefault(
                 "message",
