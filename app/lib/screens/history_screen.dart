@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/screening_history_service.dart';
 import '../theme/app_theme.dart';
+import 'screening_report_screen.dart';
 
 /// History screen — lists REAL past screening results stored on-device.
 ///
@@ -116,7 +117,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     padding: const EdgeInsets.all(20),
                     itemCount: _records.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _buildRecordCard(_records[i]),
+                    itemBuilder: (_, i) => _buildRecordTile(_records[i]),
                   ),
                 ),
     );
@@ -159,6 +160,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // Tappable wrapper — navigates to this record's individual report.
+  Widget _buildRecordTile(ScreeningRecord record) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScreeningReportScreen(record: record),
+          ),
+        ),
+        child: _buildRecordCard(record),
+      ),
+    );
+  }
+
   Widget _buildRecordCard(ScreeningRecord record) {
     final dt = record.dateTime;
     final dateStr =
@@ -178,12 +196,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       child: Row(
         children: [
-          // Hb value
+          // Hb value (or placeholder for failed screenings)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                record.estimatedHb.toStringAsFixed(1),
+                record.hasResult
+                    ? record.estimatedHb.toStringAsFixed(1)
+                    : '—',
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
@@ -191,9 +211,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   letterSpacing: -1,
                 ),
               ),
-              const Text(
-                'g/dL',
-                style: TextStyle(
+              Text(
+                record.hasResult ? 'g/dL' : 'incomplete',
+                style: const TextStyle(
                   fontSize: 11,
                   color: AppTheme.slateLight,
                   fontWeight: FontWeight.w500,
@@ -255,6 +275,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
             ),
+          ),
+          // Chevron — signals tappability
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: AppTheme.slateLight,
           ),
         ],
       ),

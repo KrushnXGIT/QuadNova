@@ -11,6 +11,8 @@ import 'screens/history_screen.dart';
 import 'screens/info_screen.dart';
 import 'screens/account_screen.dart';
 import 'screens/server_setup_screen.dart';
+import 'screens/screening_report_screen.dart';
+import 'services/screening_history_service.dart';
 import 'widgets/bottom_nav_bar.dart';
 
 void main() {
@@ -75,6 +77,12 @@ class HemoScanApp extends StatelessWidget {
 
       case '/info':
         return MaterialPageRoute(builder: (_) => const InfoScreen());
+
+      case '/report':
+        final record = settings.arguments as ScreeningRecord;
+        return MaterialPageRoute(
+          builder: (_) => ScreeningReportScreen(record: record),
+        );
 
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
