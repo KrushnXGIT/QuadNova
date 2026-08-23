@@ -42,6 +42,10 @@ class ReportPdfService {
             _sectionSpacer(),
             _divider(),
             _sectionSpacer(),
+            _buildStatus(),
+            _sectionSpacer(),
+            _divider(),
+            _sectionSpacer(),
             _buildWhatThisMeans(record),
             _sectionSpacer(),
             _divider(),
@@ -51,10 +55,6 @@ class ReportPdfService {
             _divider(),
             _sectionSpacer(),
             _buildImportant(),
-            _sectionSpacer(),
-            _divider(),
-            _sectionSpacer(),
-            _buildTechnicalDetails(record),
           ],
           _sectionSpacer(),
         ],
@@ -232,6 +232,12 @@ class ReportPdfService {
                 '${ReportStrings.imageQualityLabel}: $qual'),
           ],
         ),
+        pw.SizedBox(height: 6),
+        pw.Text(
+          ReportStrings.confidenceExplanation,
+          textAlign: pw.TextAlign.center,
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        ),
       ],
     );
   }
@@ -239,25 +245,11 @@ class ReportPdfService {
   // ── What This Means ───────────────────────────────────────
 
   static pw.Widget _buildWhatThisMeans(ScreeningRecord record) {
-    final cs = record.confidenceStatus.toUpperCase();
-    final lines = <String>[
-      'Your estimated haemoglobin level is '
-          '${record.estimatedHb.toStringAsFixed(1)} g/dL.',
-    ];
-
-    if (cs == 'HIGH_CONFIDENCE') {
-      lines.add(ReportStrings.interpHighConf);
-    } else if (cs == 'MEDIUM_CONFIDENCE') {
-      lines.add(ReportStrings.interpMedConf);
-    } else {
-      lines.add(ReportStrings.interpLowConf);
-    }
-    if (record.hbStd > 1.5) {
-      lines.add(ReportStrings.interpHighUncertainty);
-    }
-    if (record.estimatedHb < 10.0 && cs != 'LOW_CONFIDENCE') {
-      lines.add(ReportStrings.interpLowHb);
-    }
+    final lines = ReportStrings.interpretationLines(
+      estimatedHb: record.estimatedHb,
+      confidenceStatus: record.confidenceStatus,
+      hbStd: record.hbStd,
+    );
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -273,6 +265,33 @@ class ReportPdfService {
           ),
         ),
       ],
+    );
+  }
+
+  static pw.Widget _buildStatus() {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        color: PdfColors.grey100,
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(ReportStrings.resultLabel),
+          pw.SizedBox(height: 5),
+          pw.Text(ReportStrings.statusUnavailable,
+              style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey800)),
+          pw.SizedBox(height: 4),
+          pw.Text(ReportStrings.statusExplanation,
+              style: const pw.TextStyle(
+                  fontSize: 10, color: PdfColors.grey700, lineSpacing: 1.5)),
+        ],
+      ),
     );
   }
 
@@ -323,71 +342,6 @@ class ReportPdfService {
           ),
         ],
       ),
-    );
-  }
-
-  // ── Technical details ─────────────────────────────────────
-
-  static pw.Widget _buildTechnicalDetails(ScreeningRecord record) {
-    final ci = record.confidenceInterval95;
-    final rows = <List<String>>[
-      [ReportStrings.screeningIdLabel, record.screeningId],
-      if (record.modelName.isNotEmpty)
-        [ReportStrings.modelLabel, record.modelName],
-      if (record.modelVersion.isNotEmpty)
-        [ReportStrings.modelVersionLabel, record.modelVersion],
-      if (record.hbStd > 0)
-        [
-          ReportStrings.uncertaintyLabel,
-          '±${record.hbStd.toStringAsFixed(2)} ${ReportStrings.unit}'
-        ],
-      if (ci.length == 2)
-        [
-          ReportStrings.ciLabel,
-          '${ci[0].toStringAsFixed(1)} – ${ci[1].toStringAsFixed(1)} ${ReportStrings.unit}'
-        ],
-      [
-        ReportStrings.confidenceLabel,
-        ReportStrings.confidenceDisplay(record.confidenceStatus)
-      ],
-      [
-        ReportStrings.imageQualityLabel,
-        ReportStrings.qualityDisplay(record.imageQualityStatus)
-      ],
-    ];
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        _sectionTitle(ReportStrings.technicalDetails),
-        pw.SizedBox(height: 6),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey200, width: 0.5),
-          children: rows
-              .map(
-                (row) => pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(row[0],
-                          style: const pw.TextStyle(
-                              fontSize: 9, color: PdfColors.grey600)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(6),
-                      child: pw.Text(row[1],
-                          style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.grey800,
-                          )),
-                    ),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
-      ],
     );
   }
 

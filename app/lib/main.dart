@@ -5,7 +5,7 @@ import 'screens/splash_screen.dart';
 import 'screens/auth/phone_input_screen.dart';
 import 'screens/auth/otp_verify_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/camera_screen.dart';
+import 'screens/screening_entry_screen.dart';
 import 'screens/preview_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/info_screen.dart';
@@ -67,7 +67,7 @@ class HemoScanApp extends StatelessWidget {
         );
 
       case '/camera':
-        return MaterialPageRoute(builder: (_) => const CameraScreen());
+        return MaterialPageRoute(builder: (_) => const ScreeningEntryScreen());
 
       case '/preview':
         final imagePath = settings.arguments as String;

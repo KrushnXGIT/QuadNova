@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/report_strings.dart';
 import '../services/screening_history_service.dart';
 import '../theme/app_theme.dart';
 import 'screening_report_screen.dart';
@@ -265,11 +266,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  record.modelVersion.isEmpty
-                      ? 'HemoScan AI model'
-                      : record.modelVersion,
+                  record.hasResult
+                      ? '${ReportStrings.resultLabel}: ${ReportStrings.statusUnavailable}'
+                      : 'Screening not completed',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: AppTheme.slateLight,
                   ),
                 ),

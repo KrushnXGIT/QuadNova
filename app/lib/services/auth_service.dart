@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'consent_service.dart';
 
 /// Mock OTP authentication service.
 ///
@@ -24,6 +25,7 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_kLoggedIn, true);
       await prefs.setString(_kPhoneNumber, phoneNumber);
+      await ConsentService.instance.resetForLogin();
       return true;
     }
     return false;
@@ -46,5 +48,6 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kLoggedIn);
     await prefs.remove(_kPhoneNumber);
+    await ConsentService.instance.clearForLogout();
   }
 }

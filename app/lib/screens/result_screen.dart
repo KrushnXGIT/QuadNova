@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/screening_history_service.dart';
+import '../core/report_strings.dart';
 import '../theme/app_theme.dart';
 import 'preview_screen.dart';
 
@@ -58,7 +59,6 @@ class _ResultScreenState extends State<ResultScreen> {
       MaterialPageRoute(builder: (_) => PreviewScreen(imagePath: path)),
     );
   }
-
   // ── Build ─────────────────────────────────────────────────
 
   @override
@@ -360,15 +360,15 @@ class _ReportBody extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Confidence & image-quality metrics ────
+        // ── Simple screening checks ─────────────────
         Row(
           children: [
             Expanded(
               child: _MetricCard(
-                label: 'Uncertainty (±1 SD)',
-                value: '±${data.hbStd.toStringAsFixed(2)} ${data.unit}',
-                icon: Icons.query_stats_rounded,
-                color: AppTheme.slateMid,
+                label: ReportStrings.confidenceLabel,
+                value: ReportStrings.confidenceDisplay(data.confidenceStatus),
+                icon: Icons.check_circle_outline_rounded,
+                color: confColor,
               ),
             ),
             const SizedBox(width: 12),
@@ -389,19 +389,48 @@ class _ReportBody extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── 95% confidence interval ───────────────
-        if (data.confidenceInterval95.length == 2)
-          _MetricCard(
-            label: '95% Confidence Interval',
-            value:
-                '${data.confidenceInterval95[0].toStringAsFixed(1)} – '
-                '${data.confidenceInterval95[1].toStringAsFixed(1)} ${data.unit}',
-            icon: Icons.align_horizontal_center_rounded,
-            color: AppTheme.slateMid,
+        const Text(
+          'Screening confidence tells you how suitable the result was based '
+          'on the image and system checks.',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.slateLight,
+            height: 1.5,
           ),
+        ),
 
-        if (data.confidenceInterval95.length == 2)
-          const SizedBox(height: 16),
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceWhite,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: ReportStrings.interpretationLines(
+              estimatedHb: data.estimatedHb,
+              confidenceStatus: data.confidenceStatus,
+              hbStd: data.hbStd,
+            ).map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  line,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.slateMid,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+            ).toList(),
+          ),
+        ),
+
+        const SizedBox(height: 16),
 
         // ── Recommendation (verbatim from backend) ─
         Container(
@@ -448,50 +477,6 @@ class _ReportBody extends StatelessWidget {
         ),
 
         const SizedBox(height: 16),
-
-        // ── Model information ─────────────────────
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.surfacePaper,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.divider),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.memory_rounded,
-                  size: 16, color: AppTheme.slateLight),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Model',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.slateLight,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      data.model.name.isEmpty
-                          ? 'HemoScan AI screening model'
-                          : '${data.model.name} · ${data.model.version}',
-                      style: const TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.slateMid,
-                          height: 1.55),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
 
         const SizedBox(height: 24),
 

@@ -21,11 +21,14 @@ class ReportStrings {
       'Screening estimate — not a clinical diagnosis';
 
   // ── Confidence ───────────────────────────────────────────
-  static const String confidenceLabel   = 'How sure the system is';
+  static const String confidenceLabel   = 'Screening confidence';
   static const String high              = 'High';
   static const String medium            = 'Medium';
   static const String low               = 'Low';
   static const String notAvailable      = 'Not available';
+  static const String confidenceExplanation =
+      'Confidence tells you how suitable the screening result was based on '
+      'the image and system checks.';
 
   static String confidenceDisplay(String status) {
     switch (status.toUpperCase()) {
@@ -63,20 +66,18 @@ class ReportStrings {
     }
   }
 
-  // ── Technical details ────────────────────────────────────
-  static const String technicalDetails  = 'Technical details';
-  static const String modelLabel        = 'Model';
-  static const String modelVersionLabel = 'Version';
-  static const String uncertaintyLabel  = 'Estimated uncertainty';
-  static const String ciLabel           = 'Estimated range (95%)';
-
   // ── Sections ─────────────────────────────────────────────
+  static const String resultLabel       = 'Result';
+  static const String statusUnavailable = 'Clinical interpretation unavailable';
+  static const String statusExplanation =
+      'This screening system does not have enough information or a validated '
+      'clinical reference rule to classify the estimate as low or within range.';
   static const String whatThisMeans  = 'What This Means';
   static const String nextStep       = 'Recommended next step';
   static const String importantNote  = 'Important';
-  static const String disclaimer     =
-      'This report does not replace a blood test or a medical diagnosis. '
-      'It is a screening estimate only.';
+    static const String disclaimer     =
+      'This result is a screening estimate and does not replace a clinical '
+      'blood test or medical diagnosis.';
 
   // ── Interpretation templates ──────────────────────────────
   static const String interpHighConf =
@@ -94,9 +95,35 @@ class ReportStrings {
   static const String interpHighUncertainty =
       'The estimated uncertainty is relatively high for this reading.';
 
-  static const String interpLowHb =
-      'This result may suggest your haemoglobin level could be lower than expected. '
-      'Please consult a healthcare professional and consider a confirmatory blood test.';
+  static const String noClinicalInterpretation =
+      'Clinical interpretation is not available from this screening alone.';
+  static const String interpretationConfirmation =
+      'Please consult a healthcare professional for interpretation and confirmation '
+      'with an appropriate blood test.';
+
+  /// Case 3: the app has no demographic inputs or validated clinical
+  /// reference rule, so it must not classify an Hb estimate.
+  static List<String> interpretationLines({
+    required double estimatedHb,
+    required String confidenceStatus,
+    required double hbStd,
+  }) {
+    final cs = confidenceStatus.toUpperCase();
+    final lines = <String>[
+      'Estimated haemoglobin: ${estimatedHb.toStringAsFixed(1)} g/dL.',
+      noClinicalInterpretation,
+    ];
+
+    if (cs == 'HIGH_CONFIDENCE') {
+      lines.add(interpHighConf);
+    } else if (cs == 'MEDIUM_CONFIDENCE') {
+      lines.add(interpMedConf);
+    } else {
+      lines.add(interpLowConf);
+    }
+    lines.add(interpretationConfirmation);
+    return lines;
+  }
 
   // ── Failed / incomplete screening ────────────────────────
   static const String screeningNotCompleted = 'Screening not completed';

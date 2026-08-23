@@ -59,7 +59,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/camera', (_) => false);
     } else {
       setState(() {
         _isVerifying = false;

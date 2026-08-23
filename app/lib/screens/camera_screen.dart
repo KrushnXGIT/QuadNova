@@ -18,13 +18,23 @@ import '../widgets/quality_indicator.dart';
 /// capture-guidance heuristics only — the authoritative image-quality
 /// decision always remains with the backend AI pipeline.
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final bool consentGiven;
+  final String consentVersion;
+  final DateTime consentTimestamp;
+
+  const CameraScreen({
+    super.key,
+    required this.consentGiven,
+    required this.consentVersion,
+    required this.consentTimestamp,
+  });
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
 enum _CameraPhase {
+  consentRequired,
   requestingPermission,
   permissionDenied,
   permissionPermanentlyDenied,
@@ -68,7 +78,11 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _ensurePermissionAndInit();
+    if (widget.consentGiven) {
+      _ensurePermissionAndInit();
+    } else {
+      _phase = _CameraPhase.consentRequired;
+    }
   }
 
   @override
@@ -404,6 +418,7 @@ class _CameraScreenState extends State<CameraScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: switch (_phase) {
+        _CameraPhase.consentRequired => _buildConsentRequired(),
         _CameraPhase.requestingPermission ||
         _CameraPhase.initializing =>
           _buildLoading(),
@@ -413,6 +428,24 @@ class _CameraScreenState extends State<CameraScreen>
         _CameraPhase.error => _buildError(),
         _CameraPhase.ready => _buildCamera(),
       },
+    );
+  }
+
+  Widget _buildConsentRequired() {
+    return _buildMessageScreen(
+      icon: Icons.fact_check_outlined,
+      title: 'Consent Required',
+      message: 'Please read and agree to the screening information before using the camera.',
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white54),
+          ),
+          child: const Text('Go Back'),
+        ),
+      ],
     );
   }
 
@@ -442,7 +475,16 @@ class _CameraScreenState extends State<CameraScreen>
         ElevatedButton.icon(
           onPressed: _ensurePermissionAndInit,
           icon: const Icon(Icons.refresh_rounded, size: 18),
-          label: const Text('Grant Permission'),
+          label: const Text('Try Again'),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white54),
+          ),
+          child: const Text('Back'),
         ),
       ],
     );

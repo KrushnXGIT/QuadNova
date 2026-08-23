@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,9 +12,9 @@ import '../theme/app_theme.dart';
 /// historical [ScreeningRecord].
 ///
 /// IMPORTANT:
-/// – All values come from the stored [ScreeningRecord].
-/// – No AI model is called. No Hb value is invented or recalculated.
-/// – If [record.hasResult] is false the report shows "Screening not completed".
+/// ΓÇô All values come from the stored [ScreeningRecord].
+/// ΓÇô No AI model is called. No Hb value is invented or recalculated.
+/// ΓÇô If [record.hasResult] is false the report shows "Screening not completed".
 class ScreeningReportScreen extends StatefulWidget {
   final ScreeningRecord record;
   const ScreeningReportScreen({super.key, required this.record});
@@ -26,7 +26,7 @@ class ScreeningReportScreen extends StatefulWidget {
 class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
   bool _generatingPdf = false;
 
-  // ── PDF generation ────────────────────────────────────────
+  // ΓöÇΓöÇ PDF generation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   Future<void> _downloadReport({bool share = false}) async {
     if (_generatingPdf) return;
@@ -37,7 +37,7 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
       if (!mounted) return;
       await Share.shareXFiles(
         [XFile(pdf.path)],
-        subject: 'Anaemia Screening Report — ${widget.record.screeningId}',
+        subject: 'Anaemia Screening Report ΓÇö ${widget.record.screeningId}',
       );
     } catch (_) {
       if (!mounted) return;
@@ -52,7 +52,7 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────
+  // ΓöÇΓöÇ Build ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +84,7 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Header card ──────────────────────────────
+              // ΓöÇΓöÇ Header card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
               _HeaderCard(
                 dateStr: dateStr,
                 timeStr: timeStr,
@@ -92,14 +92,16 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Main result or failure ───────────────────
+              // ΓöÇΓöÇ Main result or failure ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
               if (!record.hasResult)
                 _IncompleteCard()
               else ...[
                 _HbCard(record: record),
                 const SizedBox(height: 16),
+                const _StatusCard(),
+                const SizedBox(height: 16),
 
-                // ── What This Means ──────────────────────
+                // ΓöÇΓöÇ What This Means ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
                 _SectionCard(
                   title: ReportStrings.whatThisMeans,
                   icon: Icons.lightbulb_outline_rounded,
@@ -107,7 +109,7 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Next Step ────────────────────────────
+                // ΓöÇΓöÇ Next Step ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
                 _SectionCard(
                   title: ReportStrings.nextStep,
                   icon: Icons.directions_walk_rounded,
@@ -124,15 +126,12 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Important ────────────────────────────
+                // ΓöÇΓöÇ Important ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
                 _ImportantCard(),
                 const SizedBox(height: 16),
 
-                // ── Technical details (collapsed) ────────
-                _TechnicalDetails(record: record),
                 const SizedBox(height: 24),
-
-                // ── Actions ──────────────────────────────
+                // ΓöÇΓöÇ Actions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
                 _generatingPdf
                     ? const Center(
                         child: Padding(
@@ -191,9 +190,9 @@ class _ScreeningReportScreenState extends State<ScreeningReportScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Header card
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class _HeaderCard extends StatelessWidget {
   final String dateStr;
@@ -285,9 +284,9 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Main Hb result card
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class _HbCard extends StatelessWidget {
   final ScreeningRecord record;
@@ -321,7 +320,7 @@ class _HbCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Large Hb value — neutral colour, no traffic-light semantics
+          // Large Hb value ΓÇö neutral colour, no traffic-light semantics
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -356,7 +355,7 @@ class _HbCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Confidence + quality chips — muted, not traffic-light
+          // Confidence + quality chips ΓÇö muted, not traffic-light
           Wrap(
             spacing: 10,
             runSpacing: 8,
@@ -419,9 +418,41 @@ class _Chip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
+class _StatusCard extends StatelessWidget {
+  const _StatusCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(ReportStrings.resultLabel,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                  color: AppTheme.slateLight)),
+          SizedBox(height: 8),
+          Text(ReportStrings.statusUnavailable,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                  color: AppTheme.slateDeep)),
+          SizedBox(height: 8),
+          Text(ReportStrings.statusExplanation,
+              style: TextStyle(fontSize: 14, color: AppTheme.slateMid,
+                  height: 1.55)),
+        ],
+      ),
+    );
+  }
+}
+
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Interpretation text (plain language, non-clinical)
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class _InterpretationText extends StatelessWidget {
   final ScreeningRecord record;
@@ -429,33 +460,11 @@ class _InterpretationText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lines = <String>[];
-
-    // Sentence 1: what the result is
-    lines.add(
-        'Your estimated haemoglobin level is '
-        '${record.estimatedHb.toStringAsFixed(1)} g/dL.');
-
-    // Sentence 2: confidence context
-    final cs = record.confidenceStatus.toUpperCase();
-    if (cs == 'HIGH_CONFIDENCE') {
-      lines.add(ReportStrings.interpHighConf);
-    } else if (cs == 'MEDIUM_CONFIDENCE') {
-      lines.add(ReportStrings.interpMedConf);
-    } else {
-      // LOW_CONFIDENCE or unknown
-      lines.add(ReportStrings.interpLowConf);
-    }
-
-    // Sentence 3: unusually high uncertainty flag
-    if (record.hbStd > 1.5) {
-      lines.add(ReportStrings.interpHighUncertainty);
-    }
-
-    // Sentence 4: low Hb nudge (non-clinical — just a "may suggest" nudge)
-    if (record.estimatedHb < 10.0 && cs != 'LOW_CONFIDENCE') {
-      lines.add(ReportStrings.interpLowHb);
-    }
+    final lines = ReportStrings.interpretationLines(
+      estimatedHb: record.estimatedHb,
+      confidenceStatus: record.confidenceStatus,
+      hbStd: record.hbStd,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,9 +487,9 @@ class _InterpretationText extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Generic section card
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class _SectionCard extends StatelessWidget {
   final String title;
@@ -524,9 +533,9 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Important / disclaimer card
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class _ImportantCard extends StatelessWidget {
   @override
@@ -576,111 +585,12 @@ class _ImportantCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Technical details (collapsed expansion tile)
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-class _TechnicalDetails extends StatelessWidget {
-  final ScreeningRecord record;
-  const _TechnicalDetails({required this.record});
-
-  @override
-  Widget build(BuildContext context) {
-    final ci = record.confidenceInterval95;
-    final rows = <_TechRow>[
-      _TechRow(
-          label: ReportStrings.screeningIdLabel,
-          value: record.screeningId),
-      if (record.modelName.isNotEmpty)
-        _TechRow(
-            label: ReportStrings.modelLabel,
-            value: record.modelName),
-      if (record.modelVersion.isNotEmpty)
-        _TechRow(
-            label: ReportStrings.modelVersionLabel,
-            value: record.modelVersion),
-      if (record.hbStd > 0)
-        _TechRow(
-            label: ReportStrings.uncertaintyLabel,
-            value:
-                '±${record.hbStd.toStringAsFixed(2)} ${ReportStrings.unit}'),
-      if (ci.length == 2)
-        _TechRow(
-            label: ReportStrings.ciLabel,
-            value:
-                '${ci[0].toStringAsFixed(1)} – ${ci[1].toStringAsFixed(1)} '
-                '${ReportStrings.unit}'),
-      _TechRow(
-          label: ReportStrings.confidenceLabel,
-          value: ReportStrings.confidenceDisplay(record.confidenceStatus)),
-      _TechRow(
-          label: ReportStrings.imageQualityLabel,
-          value: ReportStrings.qualityDisplay(record.imageQualityStatus)),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.divider),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
-          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-          leading: const Icon(Icons.science_outlined,
-              size: 18, color: AppTheme.slateLight),
-          title: const Text(
-            ReportStrings.technicalDetails,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.slateMid,
-            ),
-          ),
-          children: [
-            const Divider(color: AppTheme.divider),
-            const SizedBox(height: 8),
-            ...rows.map((r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(r.label,
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.slateLight)),
-                      Flexible(
-                        child: Text(r.value,
-                            textAlign: TextAlign.end,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.slateDeep,
-                            )),
-                      ),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TechRow {
-  final String label;
-  final String value;
-  const _TechRow({required this.label, required this.value});
-}
-
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Incomplete / failed screening placeholder
-// ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class _IncompleteCard extends StatelessWidget {
   @override
